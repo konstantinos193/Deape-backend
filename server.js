@@ -124,31 +124,32 @@ const SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24 hours
 app.post('/api/session', validateApiKey, (req, res) => {
     try {
         const { discordId, username } = req.body;
-        console.log('Creating session for:', { discordId, username });
         
+        // Generate a proper UUID for the session
         const sessionId = uuidv4();
+        
+        // Create session with all required fields
         const session = {
             id: sessionId,
             discordId,
             username,
+            isDiscordConnected: true,
             wallets: [],
             createdAt: Date.now(),
             lastActivity: Date.now()
         };
 
+        // Store in both maps
         sessions.set(sessionId, session);
-        
-        if (discordId) {
-            discordSessions.set(discordId, session);
-        }
+        discordSessions.set(discordId, session);
 
-        console.log('Created new session:', {
+        console.log('Created new session:', session);
+
+        res.json({ 
+            success: true,
             sessionId,
-            discordId,
-            username
+            session 
         });
-
-        res.json({ sessionId, session });
     } catch (error) {
         console.error('Error creating session:', error);
         res.status(500).json({ error: error.message });
