@@ -34,13 +34,30 @@ const STAKING_ABI = [
 
 const app = express();
 
-// Add CORS configuration before other middleware
-app.use(cors({
-    origin: 'https://deape.fi',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    credentials: true,
-    optionsSuccessStatus: 204
-}));
+// Remove any existing CORS middleware and replace with this configuration
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', 'https://deape.fi');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+        res.status(204).end();
+        return;
+    }
+    
+    next();
+});
+
+// Add request logging middleware (for debugging CORS issues)
+app.use((req, res, next) => {
+    console.log(`${req.method} ${req.path}`, {
+        origin: req.headers.origin,
+        headers: req.headers
+    });
+    next();
+});
 
 // Initialize session maps
 const sessions = new Map();
