@@ -38,12 +38,12 @@ const app = express();
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', 'https://deape.fi');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-api-key');
     res.header('Access-Control-Allow-Credentials', 'true');
     
     // Handle preflight requests
     if (req.method === 'OPTIONS') {
-        res.status(204).end();
+        res.sendStatus(204);
         return;
     }
     
@@ -67,15 +67,13 @@ const discordSessions = new Map();
 const corsMiddleware = (req, res, next) => {
     const origin = req.headers.origin;
 
-    // Check if the origin is allowed
     if (origin === 'https://deape.fi') {
         res.setHeader('Access-Control-Allow-Origin', 'https://deape.fi');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key, Authorization');
         res.setHeader('Access-Control-Allow-Credentials', 'true');
     }
 
-    // Handle OPTIONS request for CORS preflight
     if (req.method === 'OPTIONS') {
         return res.sendStatus(204);
     }
