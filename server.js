@@ -34,36 +34,45 @@ const STAKING_ABI = [
 
 const app = express();
 
-// CORS configuration
-const corsOptions = {
-    origin: ['http://localhost:3000', 'https://deape.fi'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'x-api-key'],
-    credentials: true,
-    maxAge: 86400 // CORS preflight cache time in seconds
-};
-
-// Apply CORS configuration
-app.use(cors(corsOptions));
-
 // Initialize session maps
 const sessions = new Map();
 const discordSessions = new Map();
 
-// Make sessions available to routes
-app.set('sessions', sessions);
-app.set('discordSessions', discordSessions);
+// CORS middleware
+const corsMiddleware = (req, res, next) => {
+    const origin = req.headers.origin;
+
+    // Check if the origin is allowed
+    if (origin === 'https://deape.fi') {
+        res.setHeader('Access-Control-Allow-Origin', 'https://deape.fi');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
+
+    // Handle OPTIONS request for CORS preflight
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(204);
+    }
+
+    next();
+};
+
+// Apply middleware
+app.use(corsMiddleware);
+app.use(rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100 // limit each IP to 100 requests per windowMs
+}));
+app.use(express.json());
+
+// Serve static files from the public directory
+app.use(express.static('public'));
 
 // API Keys (store these in your .env file)
 const BOT_API_KEY = process.env.BOT_API_KEY || uuidv4();
 const FRONTEND_API_KEY = process.env.FRONTEND_API_KEY || uuidv4();
 const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL;
-
-// Rate limiting
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100 // limit each IP to 100 requests per windowMs
-});
 
 // API key validation middleware
 const validateApiKey = (req, res, next) => {
@@ -73,7 +82,7 @@ const validateApiKey = (req, res, next) => {
     }
 
     const apiKey = req.headers['x-api-key'];
-    
+
     console.log('API Key Validation:', {
         receivedKey: apiKey,
         botKey: BOT_API_KEY,
@@ -84,26 +93,19 @@ const validateApiKey = (req, res, next) => {
         },
         path: req.path
     });
-    
+
     if (!apiKey) {
         console.log('No API key provided');
         return res.status(401).json({ error: 'API key required' });
     }
-    
+
     if (apiKey !== BOT_API_KEY && apiKey !== FRONTEND_API_KEY) {
         console.log('Invalid API key provided');
         return res.status(403).json({ error: 'Invalid API key' });
     }
-    
+
     next();
 };
-
-// Apply middleware
-app.use(limiter);
-app.use(express.json());
-
-// Serve static files from the public directory
-app.use(express.static('public'));
 
 // Apply API key validation only to API routes
 app.use('/api', validateApiKey);
@@ -330,7 +332,7 @@ app.post('/api/discord/:sessionId/wallets', validateApiKey, async (req, res) => 
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-    log('ERROR', 'Unhandled error occurred', {
+    console.log('ERROR', 'Unhandled error occurred', {
         error: err.message,
         stack: err.stack,
         path: req.path,
@@ -340,17 +342,6 @@ app.use((err, req, res, next) => {
         error: err.message,
         status: 'error'
     });
-});
-
-// Add CORS headers to all responses
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, x-api-key');
-    if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
-    }
-    next();
 });
 
 // Debug logging middleware
@@ -369,7 +360,6 @@ app.get('/health', (req, res) => {
         status: 'ok',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
-        startupTime,
         memory: process.memoryUsage(),
         environment: process.env.NODE_ENV || 'development',
         sessions: {
@@ -377,30 +367,28 @@ app.get('/health', (req, res) => {
             discord: discordSessions.size
         }
     };
-    
-    log('HEALTH_CHECK', 'Health check requested', health);
+
+    console.log('HEALTH_CHECK', 'Health check requested', health);
     res.json(health);
 });
 
 // Add request logging middleware (place this before your routes)
 app.use((req, res, next) => {
     const start = Date.now();
-    
+
     res.on('finish', () => {
-        log('REQUEST', `${req.method} ${req.path}`, {
-            method: req.method,
-            path: req.path,
+        console.log(`${req.method} ${req.path}`, {
             status: res.statusCode,
             duration: Date.now() - start,
             ip: req.ip,
             userAgent: req.get('user-agent')
         });
     });
-    
+
     next();
 });
 
-// Add this endpoint to debug sessions
+// Debug sessions endpoint
 app.get('/api/debug/sessions', validateApiKey, (req, res) => {
     const allSessions = Array.from(sessions.entries());
     res.json({
@@ -412,19 +400,5 @@ app.get('/api/debug/sessions', validateApiKey, (req, res) => {
 // Start the server
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-    log('SERVER_STARTED', `API Server is running on port ${PORT}`, {
-        port: PORT,
-        node_env: process.env.NODE_ENV,
-        uptime: process.uptime()
-    });
+    console.log(`API Server is running on port ${PORT}`);
 });
-
-// Export everything needed
-module.exports = app;
-
-app.sessions = sessions;
-app.discordSessions = discordSessions;
-app.NFT_CONTRACT_ADDRESS = NFT_CONTRACT_ADDRESS;
-app.STAKING_CONTRACT_ADDRESS = STAKING_CONTRACT_ADDRESS;
-app.NFT_ABI = NFT_ABI;
-app.STAKING_ABI = STAKING_ABI;
