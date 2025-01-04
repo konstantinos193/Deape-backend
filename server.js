@@ -34,6 +34,14 @@ const STAKING_ABI = [
 
 const app = express();
 
+// Add CORS configuration before other middleware
+app.use(cors({
+    origin: 'https://deape.fi',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true,
+    optionsSuccessStatus: 204
+}));
+
 // Initialize session maps
 const sessions = new Map();
 const discordSessions = new Map();
