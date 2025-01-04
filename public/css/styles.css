@@ -1,0 +1,61 @@
+/* Custom styles for the dashboard */
+.status-online {
+    @apply bg-green-100 text-green-800;
+}
+
+.status-offline {
+    @apply bg-red-100 text-red-800;
+}
+
+/* Chart container styles */
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+
+/* Smooth transitions */
+.transition-all {
+    transition: all 0.3s ease;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Loading animation */
+.loading {
+    @apply animate-pulse bg-gray-200;
+    height: 24px;
+    border-radius: 4px;
+}
+
+/* Table hover effects */
+.table-row-hover:hover {
+    @apply bg-gray-50;
+}
+
+/* Card hover effects */
+.stat-card {
+    @apply transition-all duration-300;
+}
+
+.stat-card:hover {
+    @apply transform -translate-y-1 shadow-lg;
+} 
