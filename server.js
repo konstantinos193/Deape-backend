@@ -325,7 +325,12 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-    console.error('Error:', err);
+    log('ERROR', 'Unhandled error occurred', {
+        error: err.message,
+        stack: err.stack,
+        path: req.path,
+        method: req.method
+    });
     res.status(500).json({
         error: err.message,
         status: 'error'
@@ -355,17 +360,49 @@ app.use((req, res, next) => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-    res.json({
+    const health = {
         status: 'ok',
         timestamp: new Date().toISOString(),
-        uptime: process.uptime()
+        uptime: process.uptime(),
+        startupTime,
+        memory: process.memoryUsage(),
+        environment: process.env.NODE_ENV || 'development',
+        sessions: {
+            total: sessions.size,
+            discord: discordSessions.size
+        }
+    };
+    
+    log('HEALTH_CHECK', 'Health check requested', health);
+    res.json(health);
+});
+
+// Add request logging middleware (place this before your routes)
+app.use((req, res, next) => {
+    const start = Date.now();
+    
+    res.on('finish', () => {
+        log('REQUEST', `${req.method} ${req.path}`, {
+            method: req.method,
+            path: req.path,
+            status: res.statusCode,
+            duration: Date.now() - start,
+            ip: req.ip,
+            userAgent: req.get('user-agent')
+        });
     });
+    
+    next();
 });
 
 // Start the server
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-    console.log(`🚀 API Server is running on port ${PORT}`);
+    log('SERVER_STARTED', `API Server is running on port ${PORT}`, {
+        port: PORT,
+        node_env: process.env.NODE_ENV,
+        uptime: process.uptime()
+    });
 });
 
 // Export everything needed
