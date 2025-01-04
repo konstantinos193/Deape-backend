@@ -34,8 +34,17 @@ const STAKING_ABI = [
 
 const app = express();
 
-// Enable CORS
-app.use(cors());
+// CORS configuration
+const corsOptions = {
+    origin: ['http://localhost:3000', 'https://deape.fi'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'x-api-key'],
+    credentials: true,
+    maxAge: 86400 // CORS preflight cache time in seconds
+};
+
+// Apply CORS configuration
+app.use(cors(corsOptions));
 
 // Initialize session maps
 const sessions = new Map();
@@ -58,6 +67,11 @@ const limiter = rateLimit({
 
 // API key validation middleware
 const validateApiKey = (req, res, next) => {
+    // Skip validation for OPTIONS requests
+    if (req.method === 'OPTIONS') {
+        return next();
+    }
+
     const apiKey = req.headers['x-api-key'];
     
     console.log('API Key Validation:', {
@@ -77,17 +91,10 @@ const validateApiKey = (req, res, next) => {
     }
     
     if (apiKey !== BOT_API_KEY && apiKey !== FRONTEND_API_KEY) {
-        console.log('Invalid API key provided:', {
-            receivedKey: apiKey,
-            validKeys: {
-                bot: BOT_API_KEY,
-                frontend: FRONTEND_API_KEY
-            }
-        });
+        console.log('Invalid API key provided');
         return res.status(403).json({ error: 'Invalid API key' });
     }
     
-    console.log('API key validation successful for path:', req.path);
     next();
 };
 
@@ -109,7 +116,6 @@ app.get('/verify', (req, res) => {
             return res.status(400).json({ error: 'Session ID is required' });
         }
 
-        // Serve the verification page
         res.sendFile('public/verify.html', { root: __dirname });
     } catch (error) {
         console.error('Error serving verification page:', error);
