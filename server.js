@@ -264,90 +264,53 @@ app.post('/api/discord/webhook', validateApiKey, (req, res) => {
 });
 
 // Wallet verification endpoint
-app.post('/api/discord/:sessionId/wallets', async (req, res) => {
+app.post('/api/discord/:sessionId/wallets', validateApiKey, async (req, res) => {
     try {
         const { sessionId } = req.params;
-        const { address } = req.body;
+        const { address, signature, message, timestamp } = req.body;
 
-        console.log('Wallet verification request:', { sessionId, address });
-
-        if (!sessionId || sessionId === 'undefined') {
-            return res.status(400).json({ error: 'Valid session ID is required' });
-        }
-
-        if (!address) {
-            return res.status(400).json({ error: 'Wallet address is required' });
-        }
-
-        // Check both session maps
-        let session = sessions.get(sessionId) || discordSessions.get(sessionId);
-        
-        if (!session) {
-            return res.status(404).json({ 
-                error: 'Session not found',
-                sessionId,
-                availableSessions: {
-                    sessions: Array.from(sessions.keys()),
-                    discordSessions: Array.from(discordSessions.keys())
-                }
-            });
-        }
-
-        const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
-        const nftContract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_ABI, provider);
-        const stakingContract = new ethers.Contract(STAKING_CONTRACT_ADDRESS, STAKING_ABI, provider);
-
-        const [nftBalance, stakerInfo] = await Promise.all([
-            nftContract.balanceOf(address),
-            stakingContract.getStakerInfo(address)
-        ]);
-
-        const walletInfo = {
+        console.log('Wallet verification request:', {
+            sessionId,
             address,
-            nftBalance: Number(nftBalance),
-            stakedNFTs: stakerInfo[0].map(t => t.toString()),
-            totalPoints: Number(stakerInfo[1]),
-            tier: Number(stakerInfo[2]),
-            isMinter: stakerInfo[3],
-            totalNFTs: Number(nftBalance) + stakerInfo[0].length
-        };
-
-        const existingWalletIndex = session.wallets.findIndex(w => 
-            w.address?.toLowerCase() === address.toLowerCase()
-        );
-
-        if (existingWalletIndex >= 0) {
-            session.wallets[existingWalletIndex] = walletInfo;
-        } else {
-            session.wallets.push(walletInfo);
-        }
-
-        // Instead of directly modifying Discord roles, send a webhook to the bot
-        try {
-            await axios.post(DISCORD_WEBHOOK_URL, {
-                type: 'ROLE_UPDATE',
-                userId: session.userId,
-                totalNFTs: walletInfo.totalNFTs
-            });
-
-            res.json({
-                ...session,
-                walletInfo
-            });
-        } catch (webhookError) {
-            console.error('Webhook error:', webhookError);
-            res.json({
-                ...session,
-                walletInfo,
-                webhookError: webhookError.message
-            });
-        }
-    } catch (error) {
-        console.error('Server error:', error);
-        res.status(500).json({
-            error: 'Failed to verify wallet',
-            details: error.message
+            timestamp,
+            hasSignature: !!signature
         });
+
+        // Validate session exists
+        const session = sessions.get(sessionId);
+        if (!session) {
+            console.error('Session not found:', sessionId);
+            return res.status(404).json({ error: 'Session not found' });
+        }
+
+        // Verify wallet ownership through signature
+        const recoveredAddress = ethers.verifyMessage(message, signature);
+        if (recoveredAddress.toLowerCase() !== address.toLowerCase()) {
+            console.error('Invalid signature');
+            return res.status(400).json({ error: 'Invalid signature' });
+        }
+
+        // Add wallet to session
+        session.wallets = session.wallets || [];
+        if (!session.wallets.find(w => w.address.toLowerCase() === address.toLowerCase())) {
+            session.wallets.push({
+                address,
+                verified: true,
+                verifiedAt: Date.now()
+            });
+        }
+
+        // Update session
+        sessions.set(sessionId, session);
+
+        res.json({
+            success: true,
+            session
+        });
+
+    } catch (error) {
+        console.error('Wallet verification error:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 
