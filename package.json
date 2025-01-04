@@ -4,6 +4,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "build": "echo 'No build step required'",
+    "vercel-build": "echo 'Ready to deploy'",
     "dev": "node server.js"
   },
   "dependencies": {
@@ -14,5 +16,8 @@
     "uuid": "^11.0.3",
     "dotenv": "^16.4.7",
     "axios": "^1.7.9"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
