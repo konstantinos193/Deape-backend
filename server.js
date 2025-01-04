@@ -219,31 +219,41 @@ app.get('/api/discord/session/:sessionId', (req, res) => {
 });
 
 // Discord webhook endpoint
-app.post('/api/discord/webhook', (req, res) => {
-    const { sessionId, username, discordId } = req.body;
-    console.log('Discord webhook received:', { sessionId, username, discordId });
+app.post('/api/discord/webhook', validateApiKey, (req, res) => {
+    try {
+        const { sessionId, username, discordId } = req.body;
+        
+        // Add debugging
+        console.log('Webhook received:', {
+            sessionId,
+            username,
+            discordId,
+            rawBody: req.body
+        });
 
-    // Create a proper session object
-    const session = {
-        id: sessionId,
-        userId: discordId,
-        username: username,
-        wallets: [],
-        timestamp: Date.now(),
-        isDiscordConnected: true
-    };
+        // Create session
+        const session = {
+            id: sessionId,
+            discordId,
+            username: username, // Make sure username is being passed correctly
+            isDiscordConnected: true,
+            wallets: [],
+            timestamp: Date.now()
+        };
 
-    // Store in both session maps
-    sessions.set(sessionId, session);
-    discordSessions.set(sessionId, session);
+        // Store session
+        sessions.set(sessionId, session);
+        discordSessions.set(discordId, session);
 
-    console.log('Discord session created:', session);
-
-    res.json({ 
-        success: true, 
-        sessionId,
-        session
-    });
+        // Send response
+        res.json({
+            success: true,
+            session
+        });
+    } catch (error) {
+        console.error('Webhook error:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // Wallet verification endpoint
