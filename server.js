@@ -329,13 +329,35 @@ app.post('/api/discord/:sessionId/wallets', validateApiKey, async (req, res) => 
             return res.status(400).json({ error: 'Invalid signature' });
         }
 
-        // Add wallet to session
+        // Create provider
+        const provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
+        
+        // Create contract instances
+        const nftContract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_ABI, provider);
+        const stakingContract = new ethers.Contract(STAKING_CONTRACT_ADDRESS, STAKING_ABI, provider);
+
+        // Get owned NFTs
+        const balance = await nftContract.balanceOf(address);
+        const ownedTokens = [];
+        for (let i = 0; i < balance; i++) {
+            const tokenId = await nftContract.tokenOfOwnerByIndex(address, i);
+            ownedTokens.push(tokenId.toString());
+        }
+
+        // Get staked NFTs
+        const stakerInfo = await stakingContract.getStakerInfo(address);
+        const stakedTokens = stakerInfo.stakedTokens.map(t => t.toString());
+
+        // Add wallet to session with NFT info
         session.wallets = session.wallets || [];
         if (!session.wallets.find(w => w.address.toLowerCase() === address.toLowerCase())) {
             session.wallets.push({
                 address,
                 verified: true,
-                verifiedAt: Date.now()
+                verifiedAt: Date.now(),
+                ownedNFTs: ownedTokens,
+                stakedNFTs: stakedTokens,
+                totalNFTs: ownedTokens.length + stakedTokens.length
             });
         }
 
