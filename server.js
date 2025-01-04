@@ -406,12 +406,11 @@ app.listen(PORT, () => {
 });
 
 // Export everything needed
-module.exports = { 
-    app, 
-    sessions,
-    discordSessions,
-    NFT_CONTRACT_ADDRESS,
-    STAKING_CONTRACT_ADDRESS,
-    NFT_ABI,
-    STAKING_ABI
-};
+module.exports = app;
+
+app.sessions = sessions;
+app.discordSessions = discordSessions;
+app.NFT_CONTRACT_ADDRESS = NFT_CONTRACT_ADDRESS;
+app.STAKING_CONTRACT_ADDRESS = STAKING_CONTRACT_ADDRESS;
+app.NFT_ABI = NFT_ABI;
+app.STAKING_ABI = STAKING_ABI;
