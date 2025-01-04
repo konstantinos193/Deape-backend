@@ -224,21 +224,22 @@ app.post('/api/discord/webhook', validateApiKey, (req, res) => {
     try {
         const { sessionId, username, discordId } = req.body;
         
-        console.log('Webhook received:', {
+        console.log('Creating session:', {
             sessionId,
             username,
             discordId,
-            rawBody: req.body
+            existingSessions: sessions.size
         });
 
         if (!sessionId || !username || !discordId) {
+            console.error('Missing required fields:', { sessionId, username, discordId });
             return res.status(400).json({ 
                 error: 'Missing required fields',
                 received: { sessionId, username, discordId }
             });
         }
 
-        // Create session with proper data
+        // Create session with all required fields
         const session = {
             id: sessionId,
             discordId,
@@ -246,15 +247,18 @@ app.post('/api/discord/webhook', validateApiKey, (req, res) => {
             isDiscordConnected: true,
             wallets: [],
             createdAt: Date.now(),
-            lastActivity: Date.now(),
-            timestamp: Date.now()
+            lastActivity: Date.now()
         };
 
-        // Store session in both maps
+        // Store in both maps
         sessions.set(sessionId, session);
         discordSessions.set(discordId, session);
 
-        console.log('Created new session:', session);
+        console.log('Session created:', {
+            sessionId,
+            sessionData: session,
+            totalSessions: sessions.size
+        });
 
         res.json({
             success: true,
@@ -388,6 +392,15 @@ app.use((req, res, next) => {
     });
     
     next();
+});
+
+// Add this endpoint to debug sessions
+app.get('/api/debug/sessions', validateApiKey, (req, res) => {
+    const allSessions = Array.from(sessions.entries());
+    res.json({
+        totalSessions: sessions.size,
+        sessions: allSessions
+    });
 });
 
 // Start the server
