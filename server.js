@@ -223,18 +223,26 @@ app.post('/api/discord/webhook', (req, res) => {
     const { sessionId, username, discordId } = req.body;
     console.log('Discord webhook received:', { sessionId, username, discordId });
 
-    discordSessions.set(sessionId, {
+    // Create a proper session object
+    const session = {
+        id: sessionId,
         userId: discordId,
         username: username,
-        timestamp: Date.now()
-    });
+        wallets: [],
+        timestamp: Date.now(),
+        isDiscordConnected: true
+    };
 
-    console.log('Discord session created:', discordSessions.get(sessionId));
+    // Store in both session maps
+    sessions.set(sessionId, session);
+    discordSessions.set(sessionId, session);
+
+    console.log('Discord session created:', session);
 
     res.json({ 
         success: true, 
         sessionId,
-        userId: discordId 
+        session
     });
 });
 
@@ -244,25 +252,28 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
         const { sessionId } = req.params;
         const { address } = req.body;
 
+        console.log('Wallet verification request:', { sessionId, address });
+
+        if (!sessionId || sessionId === 'undefined') {
+            return res.status(400).json({ error: 'Valid session ID is required' });
+        }
+
         if (!address) {
             return res.status(400).json({ error: 'Wallet address is required' });
         }
 
-        const discordSession = discordSessions.get(sessionId);
-        if (!discordSession) {
-            return res.status(404).json({ error: 'Discord session not found' });
-        }
-
-        let session = sessions.get(sessionId);
+        // Check both session maps
+        let session = sessions.get(sessionId) || discordSessions.get(sessionId);
+        
         if (!session) {
-            session = {
-                id: sessionId,
-                discordId: discordSession.userId,
-                username: discordSession.username,
-                wallets: [],
-                createdAt: Date.now()
-            };
-            sessions.set(sessionId, session);
+            return res.status(404).json({ 
+                error: 'Session not found',
+                sessionId,
+                availableSessions: {
+                    sessions: Array.from(sessions.keys()),
+                    discordSessions: Array.from(discordSessions.keys())
+                }
+            });
         }
 
         const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
@@ -298,7 +309,7 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
         try {
             await axios.post(DISCORD_WEBHOOK_URL, {
                 type: 'ROLE_UPDATE',
-                userId: discordSession.userId,
+                userId: session.userId,
                 totalNFTs: walletInfo.totalNFTs
             });
 
