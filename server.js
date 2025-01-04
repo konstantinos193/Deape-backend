@@ -223,7 +223,6 @@ app.post('/api/discord/webhook', validateApiKey, (req, res) => {
     try {
         const { sessionId, username, discordId } = req.body;
         
-        // Add debugging
         console.log('Webhook received:', {
             sessionId,
             username,
@@ -231,11 +230,18 @@ app.post('/api/discord/webhook', validateApiKey, (req, res) => {
             rawBody: req.body
         });
 
-        // Create session
+        if (!sessionId || !username || !discordId) {
+            return res.status(400).json({ 
+                error: 'Missing required fields',
+                received: { sessionId, username, discordId }
+            });
+        }
+
+        // Create session with proper data
         const session = {
             id: sessionId,
             discordId,
-            username: username, // Make sure username is being passed correctly
+            username: decodeURIComponent(username), // Make sure to decode the username
             isDiscordConnected: true,
             wallets: [],
             timestamp: Date.now()
