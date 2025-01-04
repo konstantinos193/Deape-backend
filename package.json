@@ -4,8 +4,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "build": "echo 'No build step required'",
-    "vercel-build": "echo 'Ready to deploy'",
+    "build": "echo 'Building...' && cp -r public/ dist/",
+    "vercel-build": "npm run build",
     "dev": "node server.js"
   },
   "dependencies": {
