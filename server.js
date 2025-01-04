@@ -242,19 +242,23 @@ app.post('/api/discord/webhook', validateApiKey, (req, res) => {
         const session = {
             id: sessionId,
             discordId,
-            username: decodeURIComponent(username), // Make sure to decode the username
+            username: decodeURIComponent(username),
             isDiscordConnected: true,
             wallets: [],
+            createdAt: Date.now(),
+            lastActivity: Date.now(),
             timestamp: Date.now()
         };
 
-        // Store session
+        // Store session in both maps
         sessions.set(sessionId, session);
         discordSessions.set(discordId, session);
 
-        // Send response
+        console.log('Created new session:', session);
+
         res.json({
             success: true,
+            sessionId,
             session
         });
     } catch (error) {
