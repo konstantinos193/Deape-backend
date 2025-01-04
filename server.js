@@ -85,7 +85,10 @@ const corsMiddleware = (req, res, next) => {
 app.use(corsMiddleware);
 app.use(rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100 // limit each IP to 100 requests per windowMs
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: 'Too many requests from this IP, please try again later',
+    standardHeaders: true,
+    legacyHeaders: false,
 }));
 app.use(express.json());
 
@@ -441,6 +444,17 @@ app.get('/api/debug/sessions', validateApiKey, (req, res) => {
         sessions: allSessions
     });
 });
+
+// Apply rate limiting to session endpoints
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: 'Too many requests from this IP, please try again later',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+app.use('/api/session', limiter);
 
 // Start the server
 const PORT = process.env.PORT || 3001;
