@@ -332,3 +332,8 @@ app.get('/api/session/:sessionId', (req, res) => {
   }
   res.json(session);
 });
+
+app.post('/api/discord/:sessionId/wallets', (req, res) => {
+  console.log('Received data:', req.body);
+  // ... existing code ...
+});
