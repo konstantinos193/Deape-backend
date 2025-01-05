@@ -47,31 +47,32 @@ const provider = new ethers.providers.JsonRpcProvider('https://apechain.calderac
 
 // Wallet update endpoint
 app.post('/api/discord/:sessionId/wallets', async (req, res) => {
-    const { sessionId } = req.params;
-    const { address, signature, message, timestamp } = req.body;
+  console.log('Received request for session:', req.params.sessionId);
+  const { sessionId } = req.params;
+  const { address, signature, message, timestamp } = req.body;
   
-    console.log('Received data:', { address, signature, message, timestamp });
+  console.log('Received data:', { address, signature, message, timestamp });
   
-    try {
-      const FIVE_MINUTES = 5 * 60 * 1000;
-      if (Date.now() - timestamp > FIVE_MINUTES) {
-        console.error('Timestamp is too old:', timestamp);
-        return res.status(400).json({ error: 'Timestamp is too old' });
-      }
-  
-      const isValid = verifySignature(address, message, signature);
-      if (!isValid) {
-        console.error('Invalid signature for address:', address);
-        return res.status(400).json({ error: 'Invalid signature' });
-      }
-  
-      const session = await updateSessionWithWallet(sessionId, address);
-      res.json({ session });
-    } catch (error) {
-      console.error('Error updating wallets:', error);
-      res.status(500).json({ error: 'Failed to update wallets' });
+  try {
+    const FIVE_MINUTES = 5 * 60 * 1000;
+    if (Date.now() - timestamp > FIVE_MINUTES) {
+      console.error('Timestamp is too old:', timestamp);
+      return res.status(400).json({ error: 'Timestamp is too old' });
     }
-  });
+  
+    const isValid = verifySignature(address, message, signature);
+    if (!isValid) {
+      console.error('Invalid signature for address:', address);
+      return res.status(400).json({ error: 'Invalid signature' });
+    }
+  
+    const session = await updateSessionWithWallet(sessionId, address);
+    res.json({ session });
+  } catch (error) {
+    console.error('Error updating wallets:', error);
+    res.status(500).json({ error: 'Failed to update wallets' });
+  }
+});
 
 // Cleanup expired sessions
 function cleanupSessions() {
@@ -339,6 +340,7 @@ app.get('/api/session/:sessionId', (req, res) => {
 });
 
 app.post('/api/discord/:sessionId/wallets', async (req, res) => {
+  console.log('Received request for session:', req.params.sessionId);
   const { sessionId } = req.params;
   const { address } = req.body;
 
