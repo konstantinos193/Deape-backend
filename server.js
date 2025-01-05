@@ -45,13 +45,21 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
   const { sessionId } = req.params;
   const { address, signature, message, timestamp } = req.body;
 
+  // Log incoming data
+  console.log('Received data:', { address, signature, message, timestamp });
+
   try {
+    // Example: Check if timestamp is recent (e.g., within 5 minutes)
+    const FIVE_MINUTES = 5 * 60 * 1000;
+    if (Date.now() - timestamp > FIVE_MINUTES) {
+      return res.status(400).json({ error: 'Timestamp is too old' });
+    }
+
     const isValid = verifySignature(address, signature, message);
     if (!isValid) {
       return res.status(400).json({ error: 'Invalid signature' });
     }
 
-    // Update session with wallet information
     const session = await updateSessionWithWallet(sessionId, address);
     res.json({ session });
   } catch (error) {
