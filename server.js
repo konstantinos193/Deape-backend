@@ -340,3 +340,24 @@ app.post('/api/discord/:sessionId/wallets', (req, res) => {
   console.log('Received data:', req.body);
   // ... existing code ...
 });
+
+async function updateSessionWithWallet(sessionId, address) {
+  const session = sessions.get(sessionId);
+  if (!session) {
+    throw new Error('Session not found');
+  }
+
+  // Update the session with the new wallet address
+  session.wallets = session.wallets || [];
+  if (!session.wallets.includes(address)) {
+    session.wallets.push(address);
+  }
+
+  // Update the last activity timestamp
+  session.lastActivity = Date.now();
+
+  // Save the updated session
+  sessions.set(sessionId, session);
+
+  return session;
+}
