@@ -350,12 +350,10 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
             const balanceNum = Number(balance);
             console.log('NFT balance:', balanceNum);
 
-            // Get staking info using the correct function
+            // Get staking info
             const stakerInfo = await stakingContract.getStakerInfo(address);
             console.log('Raw staker info:', stakerInfo);
-            
-            // The stakerInfo is a tuple with named properties
-            // [stakedTokenIds[], totalPoints, tier, isMinter]
+
             const stakedTokens = stakerInfo.stakedTokens || [];
             const stakedCount = stakedTokens.length;
             const totalBalance = balanceNum + stakedCount;
@@ -592,7 +590,6 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
     console.log(`API Server is running on port ${PORT}`);
 });
-
 async function updateUserRoles(userId, totalNFTs) {
     try {
         console.log('Processing role update:', { userId, totalNFTs });
