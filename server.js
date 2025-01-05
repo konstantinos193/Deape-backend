@@ -393,7 +393,6 @@ app.get('/api/nft/:sessionId', async (req, res) => {
   }
 });
 
-const provider = new ethers.providers.JsonRpcProvider('https://apechain.calderachain.xyz/http');
 const nftContractAddress = '0x485242262f1e367144fe432ba858f9ef6f491334';
 const stakingContractAddress = '0xddbcc239527dedd5e0c761042ef02a7951cec315';
 
