@@ -350,10 +350,21 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
 
             // Get staking info using the correct function
             const stakerInfo = await stakingContract.getStakerInfo(address);
-            const stakedTokens = stakerInfo[0]; // First element is stakedTokens array
-            console.log('Staked tokens:', stakedTokens.length);
+            console.log('Raw staker info:', stakerInfo); // Debug log
+            
+            // Make sure we're accessing the staked tokens array correctly
+            let stakedTokens = [];
+            if (stakerInfo && Array.isArray(stakerInfo[0])) {
+                stakedTokens = stakerInfo[0];
+            } else if (Array.isArray(stakerInfo)) {
+                stakedTokens = stakerInfo;
+            }
+            
+            console.log('Staked tokens array:', stakedTokens); // Debug log
+            const stakedCount = stakedTokens.length;
+            console.log('Staked count:', stakedCount);
 
-            const totalBalance = balanceNum + stakedTokens.length;
+            const totalBalance = balanceNum + stakedCount;
             console.log('Total balance:', totalBalance);
 
             if (totalBalance === 0) {
@@ -361,7 +372,7 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
                     error: 'No NFTs found for this address',
                     details: {
                         walletBalance: balanceNum,
-                        stakedTokens: stakedTokens.length
+                        stakedTokens: stakedCount
                     }
                 });
             }
@@ -382,7 +393,7 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
                 message: 'Wallet verified successfully',
                 details: {
                     walletBalance: balanceNum,
-                    stakedTokens: stakedTokens.length,
+                    stakedTokens: stakedCount,
                     totalBalance: totalBalance
                 },
                 session 
