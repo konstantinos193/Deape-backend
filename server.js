@@ -592,3 +592,48 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
     console.log(`API Server is running on port ${PORT}`);
 });
+
+async function updateUserRoles(userId, totalNFTs) {
+    try {
+        console.log('Processing role update:', { userId, totalNFTs });
+
+        const guild = await client.guilds.fetch(process.env.GUILD_ID);
+        if (!guild) {
+            console.error('Guild not found:', process.env.GUILD_ID);
+            return;
+        }
+
+        const member = await guild.members.fetch(userId);
+        if (!member) {
+            console.error('Member not found:', userId);
+            return;
+        }
+
+        // Remove existing roles first
+        const rolesToRemove = [VERIFIED_ROLE_ID, ELITE_ROLE_ID];
+        await Promise.all(rolesToRemove.map(roleId => member.roles.remove(roleId).catch(err => {
+            console.error(`Failed to remove role ${roleId}:`, err);
+        })));
+
+        // Add roles based on NFT count
+        if (totalNFTs >= 1) {
+            await member.roles.add(VERIFIED_ROLE_ID);
+            console.log(`Added verified role to ${member.user.tag}`);
+        }
+        
+        if (totalNFTs >= 10) {
+            await member.roles.add(ELITE_ROLE_ID);
+            console.log(`Added elite role to ${member.user.tag}`);
+        }
+
+        // Log the successful role update
+        console.log(`Updated roles for ${member.user.tag}:`, {
+            totalNFTs,
+            verified: totalNFTs >= 1,
+            elite: totalNFTs >= 10
+        });
+
+    } catch (error) {
+        console.error('Role update error:', error);
+    }
+}
