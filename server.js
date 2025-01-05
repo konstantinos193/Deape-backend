@@ -352,16 +352,25 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
             const stakerInfo = await stakingContract.getStakerInfo(address);
             console.log('Raw staker info:', stakerInfo);
             
-            // The stakerInfo is a tuple with named properties
-            // [stakedTokenIds[], totalPoints, tier, isMinter]
+            // The stakerInfo returns [stakedTokenIds[], totalPoints, tier, isMinter]
             let stakedTokens = [];
-            if (stakerInfo && stakerInfo.stakedTokenIds) {
-                // If we get named properties
-                stakedTokens = stakerInfo.stakedTokenIds;
+            
+            // Try different ways to access the staked tokens array
+            if (stakerInfo && stakerInfo.stakedTokens) {
+                stakedTokens = stakerInfo.stakedTokens;
             } else if (stakerInfo && Array.isArray(stakerInfo[0])) {
-                // If we get a tuple array
                 stakedTokens = stakerInfo[0];
+            } else if (stakerInfo && stakerInfo.result && Array.isArray(stakerInfo.result[0])) {
+                stakedTokens = stakerInfo.result[0];
             }
+
+            // Log the raw data for debugging
+            console.log('StakerInfo structure:', {
+                fullResponse: stakerInfo,
+                firstElement: stakerInfo[0],
+                isArray: Array.isArray(stakerInfo[0]),
+                typeOf: typeof stakerInfo[0]
+            });
             
             // Convert BigInts to numbers if needed
             stakedTokens = stakedTokens.map(token => Number(token));
