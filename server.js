@@ -46,7 +46,7 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
   const { address, signature, message, timestamp } = req.body;
 
   try {
-    const isValid = verifySignature(address, signature, message, timestamp);
+    const isValid = verifySignature(address, signature, message);
     if (!isValid) {
       return res.status(400).json({ error: 'Invalid signature' });
     }
