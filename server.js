@@ -30,7 +30,7 @@ const validateApiKey = (req, res, next) => {
 };
 
 // Verify signature function
-function verifySignature(address, signature, message, timestamp) {
+function verifySignature(address, signature, message) {
   try {
     const signerAddress = ethers.utils.verifyMessage(message, signature);
     return signerAddress.toLowerCase() === address.toLowerCase();
@@ -315,3 +315,12 @@ async function updateUserRoles(userId, totalNFTs) {
     console.error('Role update error:', error);
   }
 }
+
+app.get('/api/session/:sessionId', (req, res) => {
+  const { sessionId } = req.params;
+  const session = sessions.get(sessionId);
+  if (!session) {
+    return res.status(404).json({ error: 'Session not found' });
+  }
+  res.json(session);
+});
