@@ -5,6 +5,8 @@ require('dotenv').config();
 const rateLimit = require('express-rate-limit');
 const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
+const RedisStore = require('rate-limit-redis');
+const Redis = require('ioredis');
 
 // Contract addresses
 const NFT_CONTRACT_ADDRESS = '0x485242262f1e367144fe432ba858f9ef6f491334';
@@ -352,25 +354,16 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
             const stakerInfo = await stakingContract.getStakerInfo(address);
             console.log('Raw staker info:', stakerInfo);
             
-            // The stakerInfo returns [stakedTokenIds[], totalPoints, tier, isMinter]
+            // The stakerInfo is a tuple with named properties
+            // [stakedTokenIds[], totalPoints, tier, isMinter]
             let stakedTokens = [];
-            
-            // Try different ways to access the staked tokens array
-            if (stakerInfo && stakerInfo.stakedTokens) {
-                stakedTokens = stakerInfo.stakedTokens;
+            if (stakerInfo && stakerInfo.stakedTokenIds) {
+                // If we get named properties
+                stakedTokens = stakerInfo.stakedTokenIds;
             } else if (stakerInfo && Array.isArray(stakerInfo[0])) {
+                // If we get a tuple array
                 stakedTokens = stakerInfo[0];
-            } else if (stakerInfo && stakerInfo.result && Array.isArray(stakerInfo.result[0])) {
-                stakedTokens = stakerInfo.result[0];
             }
-
-            // Log the raw data for debugging
-            console.log('StakerInfo structure:', {
-                fullResponse: stakerInfo,
-                firstElement: stakerInfo[0],
-                isArray: Array.isArray(stakerInfo[0]),
-                typeOf: typeof stakerInfo[0]
-            });
             
             // Convert BigInts to numbers if needed
             stakedTokens = stakedTokens.map(token => Number(token));
@@ -495,27 +488,113 @@ app.get('/api/debug/sessions', validateApiKey, (req, res) => {
     });
 });
 
-// Adjust rate limiting to be more permissive for session endpoints
-const sessionLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 300, // Higher limit for session endpoints
-    message: 'Too many requests, please try again later',
-    standardHeaders: true,
-    legacyHeaders: false,
-});
+// Create Redis client if you have Redis URL
+const redis = process.env.REDIS_URL ? new Redis(process.env.REDIS_URL) : null;
 
-// More restrictive limit for other endpoints
-const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-    message: 'Too many requests, please try again later',
+// Different limiters for different endpoints
+const limiters = {
+  // More permissive for basic endpoints
+  basic: rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 300, // 300 requests per 15 minutes
+    message: { error: 'Too many requests, please try again later' },
     standardHeaders: true,
-    legacyHeaders: false,
-});
+    store: redis ? new RedisStore({ client: redis }) : undefined,
+    keyGenerator: (req) => {
+      return req.headers['x-forwarded-for'] || req.ip;
+    },
+  }),
+
+  // Stricter for wallet verification
+  wallet: rateLimit({
+    windowMs: 5 * 60 * 1000, // 5 minutes
+    max: 30, // 30 requests per 5 minutes
+    message: { error: 'Too many wallet verification attempts' },
+    store: redis ? new RedisStore({ client: redis }) : undefined,
+    keyGenerator: (req) => {
+      // Combine IP and session ID for more granular control
+      const ip = req.headers['x-forwarded-for'] || req.ip;
+      const sessionId = req.params.sessionId;
+      return `${ip}-${sessionId}`;
+    },
+  }),
+
+  // Very permissive for health checks
+  health: rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 100, // 100 requests per minute
+    store: redis ? new RedisStore({ client: redis }) : undefined,
+  })
+};
 
 // Apply different rate limits to different routes
-app.use('/api/session', sessionLimiter);
-app.use('/api/', apiLimiter);
+app.get('/health', limiters.health);
+app.use('/api/discord/session', limiters.basic);
+app.use('/api/discord/webhook', limiters.basic);
+app.use('/api/discord/:sessionId/wallets', limiters.wallet);
+
+// Add burst handling middleware
+const burstProtection = (req, res, next) => {
+  const ip = req.headers['x-forwarded-for'] || req.ip;
+  const key = `burst:${ip}`;
+  
+  if (redis) {
+    redis.incr(key).then(count => {
+      if (count === 1) {
+        redis.expire(key, 1); // Reset after 1 second
+      }
+      if (count > 10) { // More than 10 requests per second
+        return res.status(429).json({
+          error: 'Please slow down',
+          retryAfter: 1
+        });
+      }
+      next();
+    });
+  } else {
+    next();
+  }
+};
+
+// Apply burst protection to wallet verification
+app.use('/api/discord/:sessionId/wallets', burstProtection);
+
+// Add response headers for rate limit info
+app.use((req, res, next) => {
+  res.on('finish', () => {
+    if (res.statusCode === 429) {
+      const retryAfter = Math.ceil(req.rateLimit.resetTime / 1000) || 60;
+      res.setHeader('Retry-After', retryAfter);
+      res.setHeader('X-RateLimit-Limit', req.rateLimit.limit);
+      res.setHeader('X-RateLimit-Remaining', req.rateLimit.remaining);
+    }
+  });
+  next();
+});
+
+// Add IP-based blocking for abuse
+const blockList = new Set();
+const suspiciousIPs = new Map();
+
+app.use((req, res, next) => {
+  const ip = req.headers['x-forwarded-for'] || req.ip;
+  
+  if (blockList.has(ip)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  if (req.statusCode === 429) {
+    const count = suspiciousIPs.get(ip) || 0;
+    suspiciousIPs.set(ip, count + 1);
+    
+    if (count > 5) { // Block after 5 rate limit violations
+      blockList.add(ip);
+      suspiciousIPs.delete(ip);
+    }
+  }
+  
+  next();
+});
 
 // Start the server
 const PORT = process.env.PORT || 3001;
