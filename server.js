@@ -347,19 +347,20 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
             const balance = await nftContract.balanceOf(address);
             console.log('NFT balance:', balance.toString());
 
-            // Also check staking contract
-            const stakedBalance = await stakingContract.stakedBalance(address);
-            console.log('Staked balance:', stakedBalance.toString());
+            // Get staking info using the correct function
+            const stakerInfo = await stakingContract.getStakerInfo(address);
+            const stakedTokens = stakerInfo[0]; // First element is stakedTokens array
+            console.log('Staked tokens:', stakedTokens.length);
 
-            const totalBalance = balance.add(stakedBalance);
-            console.log('Total balance:', totalBalance.toString());
+            const totalBalance = balance.toNumber() + stakedTokens.length;
+            console.log('Total balance:', totalBalance);
 
-            if (totalBalance.toString() === '0') {
+            if (totalBalance === 0) {
                 return res.status(400).json({ 
                     error: 'No NFTs found for this address',
                     details: {
                         walletBalance: balance.toString(),
-                        stakedBalance: stakedBalance.toString()
+                        stakedTokens: stakedTokens.length
                     }
                 });
             }
@@ -380,8 +381,8 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
                 message: 'Wallet verified successfully',
                 details: {
                     walletBalance: balance.toString(),
-                    stakedBalance: stakedBalance.toString(),
-                    totalBalance: totalBalance.toString()
+                    stakedTokens: stakedTokens.length,
+                    totalBalance: totalBalance
                 },
                 session 
             });
