@@ -191,7 +191,7 @@ app.post('/api/session', validateApiKey, (req, res) => {
 });
 
 // Get session status
-app.get('/api/session/:sessionId', validateApiKey, (req, res) => {
+app.get('/api/session/:sessionId', async (req, res) => {
     try {
         const { sessionId } = req.params;
         const session = sessions.get(sessionId);
@@ -199,10 +199,10 @@ app.get('/api/session/:sessionId', validateApiKey, (req, res) => {
         if (!session) {
             return res.status(404).json({ error: 'Session not found' });
         }
-        
-        res.json(session);
+
+        res.json({ session });
     } catch (error) {
-        console.error('Error getting session:', error);
+        console.error('Session fetch error:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -310,80 +310,39 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
     try {
         const { sessionId } = req.params;
         const { address } = req.body;
-
-        if (!address) {
-            return res.status(400).json({ error: 'Wallet address is required' });
-        }
-
-        const discordSession = discordSessions.get(sessionId);
-        if (!discordSession) {
+        
+        const session = sessions.get(sessionId);
+        if (!session) {
             return res.status(404).json({ error: 'Discord session not found' });
         }
 
-        let session = sessions.get(sessionId);
-        if (!session) {
-            session = {
-                id: sessionId,
-                discordId: discordSession.userId,
-                username: discordSession.username,
-                wallets: [],
-                createdAt: Date.now()
-            };
-            sessions.set(sessionId, session);
-        }
-
-        // Fix provider initialization based on ethers version
-        let provider;
-        try {
-            // Try ethers v6 syntax
-            provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
-        } catch (error) {
-            // Fallback to ethers v5 syntax
-            provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
-        }
-
+        // Initialize provider
+        const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+        
+        // Initialize contracts
         const nftContract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_ABI, provider);
         const stakingContract = new ethers.Contract(STAKING_CONTRACT_ADDRESS, STAKING_ABI, provider);
 
-        // Get owned NFTs
+        // Verify NFT ownership
         const balance = await nftContract.balanceOf(address);
-        const ownedTokens = [];
-        for (let i = 0; i < balance; i++) {
-            const tokenId = await nftContract.tokenOfOwnerByIndex(address, i);
-            ownedTokens.push(tokenId.toString());
+        
+        if (balance.toString() === '0') {
+            return res.status(400).json({ error: 'No NFTs found for this address' });
         }
 
-        // Get staked NFTs
-        const stakerInfo = await stakingContract.getStakerInfo(address);
-        const stakedTokens = stakerInfo.stakedTokens.map(t => t.toString());
-
-        // Add wallet to session with NFT info
-        session.wallets = session.wallets || [];
-        if (!session.wallets.find(w => w.address.toLowerCase() === address.toLowerCase())) {
-            session.wallets.push({
-                address,
-                verified: true,
-                verifiedAt: Date.now(),
-                ownedNFTs: ownedTokens,
-                stakedNFTs: stakedTokens,
-                totalNFTs: ownedTokens.length + stakedTokens.length
-            });
-        }
-
-        // Update session
+        // Update session with verified wallet
+        session.wallets.push(address);
         sessions.set(sessionId, session);
 
-        res.json({
-            success: true,
-            session
+        res.json({ 
+            success: true, 
+            message: 'Wallet verified successfully',
+            session 
         });
 
     } catch (error) {
         console.error('Wallet verification error:', error);
-        res.status(500).json({
-            error: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-        });
+        res.status(500).json({ error: error.message });
     }
 });
 
