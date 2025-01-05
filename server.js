@@ -311,34 +311,88 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
         const { sessionId } = req.params;
         const { address } = req.body;
         
+        console.log('Wallet verification request:', { sessionId, address });
+
         const session = sessions.get(sessionId);
         if (!session) {
+            console.log('Session not found:', sessionId);
             return res.status(404).json({ error: 'Discord session not found' });
         }
 
-        // Initialize provider
-        const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
-        
-        // Initialize contracts
-        const nftContract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_ABI, provider);
-        const stakingContract = new ethers.Contract(STAKING_CONTRACT_ADDRESS, STAKING_ABI, provider);
-
-        // Verify NFT ownership
-        const balance = await nftContract.balanceOf(address);
-        
-        if (balance.toString() === '0') {
-            return res.status(400).json({ error: 'No NFTs found for this address' });
+        // Initialize provider with error handling
+        let provider;
+        try {
+            provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+            await provider.getNetwork(); // Test the connection
+            console.log('Provider initialized successfully');
+        } catch (error) {
+            console.error('Provider initialization failed:', error);
+            return res.status(500).json({ error: 'Failed to connect to blockchain' });
         }
 
-        // Update session with verified wallet
-        session.wallets.push(address);
-        sessions.set(sessionId, session);
+        // Initialize contracts with error handling
+        let nftContract, stakingContract;
+        try {
+            nftContract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_ABI, provider);
+            stakingContract = new ethers.Contract(STAKING_CONTRACT_ADDRESS, STAKING_ABI, provider);
+            console.log('Contracts initialized successfully');
+        } catch (error) {
+            console.error('Contract initialization failed:', error);
+            return res.status(500).json({ error: 'Failed to initialize contracts' });
+        }
 
-        res.json({ 
-            success: true, 
-            message: 'Wallet verified successfully',
-            session 
-        });
+        // Check NFT ownership
+        try {
+            console.log('Checking NFT balance for address:', address);
+            const balance = await nftContract.balanceOf(address);
+            console.log('NFT balance:', balance.toString());
+
+            // Also check staking contract
+            const stakedBalance = await stakingContract.stakedBalance(address);
+            console.log('Staked balance:', stakedBalance.toString());
+
+            const totalBalance = balance.add(stakedBalance);
+            console.log('Total balance:', totalBalance.toString());
+
+            if (totalBalance.toString() === '0') {
+                return res.status(400).json({ 
+                    error: 'No NFTs found for this address',
+                    details: {
+                        walletBalance: balance.toString(),
+                        stakedBalance: stakedBalance.toString()
+                    }
+                });
+            }
+
+            // Update session with verified wallet
+            if (!session.wallets) {
+                session.wallets = [];
+            }
+            
+            if (!session.wallets.includes(address)) {
+                session.wallets.push(address);
+                sessions.set(sessionId, session);
+                console.log('Wallet added to session:', address);
+            }
+
+            res.json({ 
+                success: true, 
+                message: 'Wallet verified successfully',
+                details: {
+                    walletBalance: balance.toString(),
+                    stakedBalance: stakedBalance.toString(),
+                    totalBalance: totalBalance.toString()
+                },
+                session 
+            });
+
+        } catch (error) {
+            console.error('NFT balance check failed:', error);
+            return res.status(500).json({ 
+                error: 'Failed to verify NFT ownership',
+                details: error.message
+            });
+        }
 
     } catch (error) {
         console.error('Wallet verification error:', error);
