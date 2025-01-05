@@ -25,7 +25,7 @@ const FRONTEND_API_KEY = process.env.FRONTEND_API_KEY;
 // API key validation middleware
 const validateApiKey = (req, res, next) => {
   const apiKey = req.headers['x-api-key'];
-  if (!apiKey || (apiKey !== BOT_API_KEY && apiKey !== FRONTEND_API_KEY)) {
+  if (!apiKey || apiKey !== process.env.BOT_API_KEY) {
     return res.status(403).json({ error: 'Invalid API key' });
   }
   next();
@@ -391,3 +391,14 @@ async function assignDiscordRoles(sessionId, walletAddress) {
   // Use Discord.js or another library to interact with the Discord API
   // Assign roles based on the wallet's NFT holdings
 }
+
+app.get('/api/discord/:sessionId/wallets', (req, res) => {
+  console.log('Fetching wallets for session:', req.params.sessionId);
+  const { sessionId } = req.params;
+  const wallets = getWalletsForSession(sessionId);
+  if (!wallets) {
+    console.error('Wallets not found for session:', sessionId);
+    return res.status(404).json({ error: 'Wallets not found for session' });
+  }
+  res.json(wallets);
+});
