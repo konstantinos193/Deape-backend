@@ -345,22 +345,28 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
         try {
             console.log('Checking NFT balance for address:', address);
             const balance = await nftContract.balanceOf(address);
-            const balanceNum = Number(balance); // Convert BigInt to number
+            const balanceNum = Number(balance);
             console.log('NFT balance:', balanceNum);
 
             // Get staking info using the correct function
             const stakerInfo = await stakingContract.getStakerInfo(address);
-            console.log('Raw staker info:', stakerInfo); // Debug log
+            console.log('Raw staker info:', stakerInfo);
             
-            // Make sure we're accessing the staked tokens array correctly
+            // The stakerInfo is a tuple with named properties
+            // [stakedTokenIds[], totalPoints, tier, isMinter]
             let stakedTokens = [];
-            if (stakerInfo && Array.isArray(stakerInfo[0])) {
+            if (stakerInfo && stakerInfo.stakedTokenIds) {
+                // If we get named properties
+                stakedTokens = stakerInfo.stakedTokenIds;
+            } else if (stakerInfo && Array.isArray(stakerInfo[0])) {
+                // If we get a tuple array
                 stakedTokens = stakerInfo[0];
-            } else if (Array.isArray(stakerInfo)) {
-                stakedTokens = stakerInfo;
             }
             
-            console.log('Staked tokens array:', stakedTokens); // Debug log
+            // Convert BigInts to numbers if needed
+            stakedTokens = stakedTokens.map(token => Number(token));
+            
+            console.log('Staked tokens array:', stakedTokens);
             const stakedCount = stakedTokens.length;
             console.log('Staked count:', stakedCount);
 
