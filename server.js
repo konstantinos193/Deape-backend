@@ -306,35 +306,33 @@ app.post('/api/discord/webhook', validateApiKey, (req, res) => {
 });
 
 // Wallet verification endpoint
-app.post('/api/discord/:sessionId/wallets', validateApiKey, async (req, res) => {
+app.post('/api/discord/:sessionId/wallets', async (req, res) => {
     try {
         const { sessionId } = req.params;
-        const { address, signature, message, timestamp } = req.body;
+        const { address } = req.body;
 
-        console.log('Wallet verification request:', {
-            sessionId,
-            address,
-            timestamp,
-            hasSignature: !!signature
-        });
-
-        // Validate session exists
-        const session = sessions.get(sessionId);
-        if (!session) {
-            console.error('Session not found:', sessionId);
-            return res.status(404).json({ error: 'Session not found' });
+        if (!address) {
+            return res.status(400).json({ error: 'Wallet address is required' });
         }
 
-        // Verify wallet ownership through signature
-        const recoveredAddress = ethers.verifyMessage(message, signature);
-        if (recoveredAddress.toLowerCase() !== address.toLowerCase()) {
-            console.error('Invalid signature');
-            return res.status(400).json({ error: 'Invalid signature' });
+        // Validate RPC_URL
+        if (!process.env.RPC_URL) {
+            return res.status(500).json({ error: 'RPC_URL not configured' });
         }
 
-        // Create provider
-        const provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
-        
+        // Initialize provider with error handling
+        let provider;
+        try {
+            provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+            await provider.getNetwork(); // Test the connection
+        } catch (error) {
+            console.error('Provider initialization error:', error);
+            return res.status(500).json({ 
+                error: 'Failed to initialize blockchain provider',
+                details: error.message 
+            });
+        }
+
         // Create contract instances
         const nftContract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_ABI, provider);
         const stakingContract = new ethers.Contract(STAKING_CONTRACT_ADDRESS, STAKING_ABI, provider);
@@ -374,7 +372,10 @@ app.post('/api/discord/:sessionId/wallets', validateApiKey, async (req, res) => 
 
     } catch (error) {
         console.error('Wallet verification error:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({
+            error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 });
 
