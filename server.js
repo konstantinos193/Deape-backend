@@ -336,9 +336,23 @@ app.get('/api/session/:sessionId', (req, res) => {
   res.json(session);
 });
 
-app.post('/api/discord/:sessionId/wallets', (req, res) => {
-  console.log('Received data:', req.body);
-  // ... existing code ...
+app.post('/api/discord/:sessionId/wallets', async (req, res) => {
+  const { sessionId } = req.params;
+  const { address } = req.body;
+
+  try {
+    const hasNFTs = await checkNFTHoldings(address);
+    const hasStakedNFTs = await checkStakedNFTs(address);
+
+    if (hasNFTs || hasStakedNFTs) {
+      await assignDiscordRoles(sessionId, address, hasStakedNFTs);
+    }
+
+    res.json({ success: true, hasNFTs, hasStakedNFTs });
+  } catch (error) {
+    console.error('Error checking NFT holdings:', error);
+    res.status(500).json({ error: 'Failed to check NFT holdings' });
+  }
 });
 
 async function updateSessionWithWallet(sessionId, address) {
@@ -360,4 +374,51 @@ async function updateSessionWithWallet(sessionId, address) {
   sessions.set(sessionId, session);
 
   return session;
+}
+
+app.get('/api/nft/:sessionId', async (req, res) => {
+  const { sessionId } = req.params;
+  try {
+    const session = sessions.get(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Fetch NFT data logic here
+    const nftData = await fetchNFTData(session.wallets);
+    res.json({ nftData });
+  } catch (error) {
+    console.error('Error fetching NFT data:', error);
+    res.status(500).json({ error: 'Failed to fetch NFT data' });
+  }
+});
+
+const provider = new ethers.providers.JsonRpcProvider('https://apechain.calderachain.xyz/http');
+const nftContractAddress = '0x485242262f1e367144fe432ba858f9ef6f491334';
+const stakingContractAddress = '0xddbcc239527dedd5e0c761042ef02a7951cec315';
+
+const nftAbi = [
+  // Add the ABI of the NFT contract here
+];
+
+const stakingAbi = [
+  // Add the ABI of the staking contract here
+];
+
+const nftContract = new ethers.Contract(nftContractAddress, nftAbi, provider);
+const stakingContract = new ethers.Contract(stakingContractAddress, stakingAbi, provider);
+
+async function checkNFTHoldings(walletAddress) {
+  const balance = await nftContract.balanceOf(walletAddress);
+  return balance.gt(0);
+}
+
+async function checkStakedNFTs(walletAddress) {
+  const stakerInfo = await stakingContract.getStakerInfo(walletAddress);
+  return stakerInfo.stakedTokens.length > 0;
+}
+
+async function assignDiscordRoles(sessionId, walletAddress) {
+  // Use Discord.js or another library to interact with the Discord API
+  // Assign roles based on the wallet's NFT holdings
 }
