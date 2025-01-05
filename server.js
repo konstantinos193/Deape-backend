@@ -396,6 +396,8 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
                 console.log('Wallet added to session:', address);
             }
 
+            console.log('Session after wallet verification:', session);
+
             res.json({ 
                 success: true, 
                 message: 'Wallet verified successfully',
