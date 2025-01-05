@@ -49,28 +49,20 @@ const provider = new ethers.providers.JsonRpcProvider('https://apechain.calderac
 app.post('/api/discord/:sessionId/wallets', async (req, res) => {
   console.log('Received request for session:', req.params.sessionId);
   const { sessionId } = req.params;
-  const { address, signature, message, timestamp } = req.body;
-  
-  console.log('Received data:', { address, signature, message, timestamp });
-  
+  const { address } = req.body;
+
   try {
-    const FIVE_MINUTES = 5 * 60 * 1000;
-    if (Date.now() - timestamp > FIVE_MINUTES) {
-      console.error('Timestamp is too old:', timestamp);
-      return res.status(400).json({ error: 'Timestamp is too old' });
+    const hasNFTs = await checkNFTHoldings(address);
+    const hasStakedNFTs = await checkStakedNFTs(address);
+
+    if (hasNFTs || hasStakedNFTs) {
+      await assignDiscordRoles(sessionId, address, hasStakedNFTs);
     }
-  
-    const isValid = verifySignature(address, message, signature);
-    if (!isValid) {
-      console.error('Invalid signature for address:', address);
-      return res.status(400).json({ error: 'Invalid signature' });
-    }
-  
-    const session = await updateSessionWithWallet(sessionId, address);
-    res.json({ session });
+
+    res.json({ success: true, hasNFTs, hasStakedNFTs });
   } catch (error) {
-    console.error('Error updating wallets:', error);
-    res.status(500).json({ error: 'Failed to update wallets' });
+    console.error('Error checking NFT holdings:', error);
+    res.status(500).json({ error: 'Failed to check NFT holdings' });
   }
 });
 
@@ -331,32 +323,14 @@ async function updateUserRoles(userId, totalNFTs) {
 }
 
 app.get('/api/session/:sessionId', (req, res) => {
+  console.log('Fetching session:', req.params.sessionId);
   const { sessionId } = req.params;
   const session = sessions.get(sessionId);
   if (!session) {
+    console.error('Session not found:', sessionId);
     return res.status(404).json({ error: 'Session not found' });
   }
   res.json(session);
-});
-
-app.post('/api/discord/:sessionId/wallets', async (req, res) => {
-  console.log('Received request for session:', req.params.sessionId);
-  const { sessionId } = req.params;
-  const { address } = req.body;
-
-  try {
-    const hasNFTs = await checkNFTHoldings(address);
-    const hasStakedNFTs = await checkStakedNFTs(address);
-
-    if (hasNFTs || hasStakedNFTs) {
-      await assignDiscordRoles(sessionId, address, hasStakedNFTs);
-    }
-
-    res.json({ success: true, hasNFTs, hasStakedNFTs });
-  } catch (error) {
-    console.error('Error checking NFT holdings:', error);
-    res.status(500).json({ error: 'Failed to check NFT holdings' });
-  }
 });
 
 async function updateSessionWithWallet(sessionId, address) {
