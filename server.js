@@ -87,7 +87,7 @@ const corsMiddleware = (req, res, next) => {
 app.use(corsMiddleware);
 app.use(rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
+    max: 200, // Increase the limit
     message: 'Too many requests from this IP, please try again later',
     standardHeaders: true,
     legacyHeaders: false,
@@ -499,7 +499,7 @@ const limiters = {
   // Stricter for wallet verification
   wallet: rateLimit({
     windowMs: 5 * 60 * 1000, // 5 minutes
-    max: 30, // 30 requests per 5 minutes
+    max: 50, // Increase the limit for wallet verification
     message: { error: 'Too many wallet verification attempts' },
     store: redis ? new RedisStore({ client: redis }) : undefined,
     keyGenerator: (req) => {
@@ -534,7 +534,7 @@ const burstProtection = (req, res, next) => {
       if (count === 1) {
         redis.expire(key, 1); // Reset after 1 second
       }
-      if (count > 10) { // More than 10 requests per second
+      if (count > 20) { // Allow more requests per second
         return res.status(429).json({
           error: 'Please slow down',
           retryAfter: 1
@@ -637,5 +637,3 @@ async function updateUserRoles(userId, totalNFTs) {
         console.error('Role update error:', error);
     }
 }
-
-
