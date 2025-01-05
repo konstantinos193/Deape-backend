@@ -30,15 +30,18 @@ const validateApiKey = (req, res, next) => {
 };
 
 // Verify signature function
-function verifySignature(address, signature, message) {
+function verifySignature(address, message, signature) {
   try {
     const signerAddress = ethers.utils.verifyMessage(message, signature);
     return signerAddress.toLowerCase() === address.toLowerCase();
   } catch (error) {
-    console.error('Signature verification failed:', error);
+    console.error('Error verifying signature:', error);
     return false;
   }
 }
+
+// Connect to ApeChain
+const provider = new ethers.providers.JsonRpcProvider('https://apechain.calderachain.xyz/http');
 
 // Wallet update endpoint
 app.post('/api/discord/:sessionId/wallets', async (req, res) => {
@@ -54,7 +57,7 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
       return res.status(400).json({ error: 'Το timestamp είναι πολύ παλιό' });
     }
 
-    const isValid = verifySignature(address, signature, message);
+    const isValid = verifySignature(address, message, signature);
     if (!isValid) {
       console.error('Μη έγκυρη υπογραφή για τη διεύθυνση:', address);
       return res.status(400).json({ error: 'Μη έγκυρη υπογραφή' });
