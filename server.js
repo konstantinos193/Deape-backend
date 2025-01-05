@@ -48,26 +48,26 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
     const { sessionId } = req.params;
     const { address, signature, message, timestamp } = req.body;
   
-    console.log('Λήφθηκαν δεδομένα:', { address, signature, message, timestamp });
+    console.log('Received data:', { address, signature, message, timestamp });
   
     try {
       const FIVE_MINUTES = 5 * 60 * 1000;
       if (Date.now() - timestamp > FIVE_MINUTES) {
-        console.error('Το timestamp είναι πολύ παλιό:', timestamp);
-        return res.status(400).json({ error: 'Το timestamp είναι πολύ παλιό' });
+        console.error('Timestamp is too old:', timestamp);
+        return res.status(400).json({ error: 'Timestamp is too old' });
       }
   
       const isValid = verifySignature(address, message, signature);
       if (!isValid) {
-        console.error('Μη έγκυρη υπογραφή για τη διεύθυνση:', address);
-        return res.status(400).json({ error: 'Μη έγκυρη υπογραφή' });
+        console.error('Invalid signature for address:', address);
+        return res.status(400).json({ error: 'Invalid signature' });
       }
   
       const session = await updateSessionWithWallet(sessionId, address);
       res.json({ session });
     } catch (error) {
-      console.error('Σφάλμα κατά την ενημέρωση των πορτοφολιών:', error);
-      res.status(500).json({ error: 'Αποτυχία ενημέρωσης πορτοφολιών' });
+      console.error('Error updating wallets:', error);
+      res.status(500).json({ error: 'Failed to update wallets' });
     }
   });
 
