@@ -117,22 +117,13 @@ app.post('/api/discord/webhook', validateApiKey, (req, res) => {
   try {
     const { sessionId, username, discordId } = req.body;
 
-    console.log('Creating session:', {
-      sessionId,
-      username,
-      discordId,
-      existingSessions: sessions.size
-    });
-
     if (!sessionId || !username || !discordId) {
-      console.error('Missing required fields:', { sessionId, username, discordId });
       return res.status(400).json({
         error: 'Missing required fields',
         received: { sessionId, username, discordId }
       });
     }
 
-    // Create session with all required fields
     const session = {
       id: sessionId,
       discordId,
@@ -143,15 +134,8 @@ app.post('/api/discord/webhook', validateApiKey, (req, res) => {
       lastActivity: Date.now()
     };
 
-    // Store in both maps
     sessions.set(sessionId, session);
     discordSessions.set(discordId, session);
-
-    console.log('Session created:', {
-      sessionId,
-      sessionData: session,
-      totalSessions: sessions.size
-    });
 
     res.json({
       success: true,
@@ -159,7 +143,6 @@ app.post('/api/discord/webhook', validateApiKey, (req, res) => {
       session
     });
   } catch (error) {
-    console.error('Webhook error:', error);
     res.status(500).json({ error: error.message });
   }
 });
