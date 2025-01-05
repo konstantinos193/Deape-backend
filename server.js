@@ -315,25 +315,33 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
             return res.status(400).json({ error: 'Wallet address is required' });
         }
 
-        // Validate RPC_URL
-        if (!process.env.RPC_URL) {
-            return res.status(500).json({ error: 'RPC_URL not configured' });
+        const discordSession = discordSessions.get(sessionId);
+        if (!discordSession) {
+            return res.status(404).json({ error: 'Discord session not found' });
         }
 
-        // Initialize provider with error handling
+        let session = sessions.get(sessionId);
+        if (!session) {
+            session = {
+                id: sessionId,
+                discordId: discordSession.userId,
+                username: discordSession.username,
+                wallets: [],
+                createdAt: Date.now()
+            };
+            sessions.set(sessionId, session);
+        }
+
+        // Fix provider initialization based on ethers version
         let provider;
         try {
+            // Try ethers v6 syntax
             provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
-            await provider.getNetwork(); // Test the connection
         } catch (error) {
-            console.error('Provider initialization error:', error);
-            return res.status(500).json({ 
-                error: 'Failed to initialize blockchain provider',
-                details: error.message 
-            });
+            // Fallback to ethers v5 syntax
+            provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
         }
 
-        // Create contract instances
         const nftContract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_ABI, provider);
         const stakingContract = new ethers.Contract(STAKING_CONTRACT_ADDRESS, STAKING_ABI, provider);
 
