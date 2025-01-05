@@ -356,7 +356,7 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
             
             // The stakerInfo is a tuple with named properties
             // [stakedTokenIds[], totalPoints, tier, isMinter]
-            const stakedTokens = stakerInfo.stakedTokenIds || [];
+            const stakedTokens = stakerInfo.stakedTokens || [];
             const stakedCount = stakedTokens.length;
             const totalBalance = balanceNum + stakedCount;
 
