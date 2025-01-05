@@ -345,21 +345,22 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
         try {
             console.log('Checking NFT balance for address:', address);
             const balance = await nftContract.balanceOf(address);
-            console.log('NFT balance:', balance.toString());
+            const balanceNum = Number(balance); // Convert BigInt to number
+            console.log('NFT balance:', balanceNum);
 
             // Get staking info using the correct function
             const stakerInfo = await stakingContract.getStakerInfo(address);
             const stakedTokens = stakerInfo[0]; // First element is stakedTokens array
             console.log('Staked tokens:', stakedTokens.length);
 
-            const totalBalance = balance.toNumber() + stakedTokens.length;
+            const totalBalance = balanceNum + stakedTokens.length;
             console.log('Total balance:', totalBalance);
 
             if (totalBalance === 0) {
                 return res.status(400).json({ 
                     error: 'No NFTs found for this address',
                     details: {
-                        walletBalance: balance.toString(),
+                        walletBalance: balanceNum,
                         stakedTokens: stakedTokens.length
                     }
                 });
@@ -380,7 +381,7 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
                 success: true, 
                 message: 'Wallet verified successfully',
                 details: {
-                    walletBalance: balance.toString(),
+                    walletBalance: balanceNum,
                     stakedTokens: stakedTokens.length,
                     totalBalance: totalBalance
                 },
