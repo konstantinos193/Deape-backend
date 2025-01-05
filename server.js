@@ -637,3 +637,5 @@ async function updateUserRoles(userId, totalNFTs) {
         console.error('Role update error:', error);
     }
 }
+
+
