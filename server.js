@@ -356,23 +356,12 @@ app.post('/api/discord/:sessionId/wallets', async (req, res) => {
             
             // The stakerInfo is a tuple with named properties
             // [stakedTokenIds[], totalPoints, tier, isMinter]
-            let stakedTokens = [];
-            if (stakerInfo && stakerInfo.stakedTokenIds) {
-                // If we get named properties
-                stakedTokens = stakerInfo.stakedTokenIds;
-            } else if (stakerInfo && Array.isArray(stakerInfo[0])) {
-                // If we get a tuple array
-                stakedTokens = stakerInfo[0];
-            }
-            
-            // Convert BigInts to numbers if needed
-            stakedTokens = stakedTokens.map(token => Number(token));
-            
-            console.log('Staked tokens array:', stakedTokens);
+            const stakedTokens = stakerInfo.stakedTokenIds || [];
             const stakedCount = stakedTokens.length;
-            console.log('Staked count:', stakedCount);
-
             const totalBalance = balanceNum + stakedCount;
+
+            console.log('Staked tokens array:', stakedTokens);
+            console.log('Staked count:', stakedCount);
             console.log('Total balance:', totalBalance);
 
             if (totalBalance === 0) {
