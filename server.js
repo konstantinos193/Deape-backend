@@ -392,13 +392,16 @@ async function assignDiscordRoles(sessionId, walletAddress) {
   // Assign roles based on the wallet's NFT holdings
 }
 
-app.get('/api/discord/:sessionId/wallets', (req, res) => {
-  console.log('Fetching wallets for session:', req.params.sessionId);
-  const { sessionId } = req.params;
-  const wallets = getWalletsForSession(sessionId);
-  if (!wallets) {
-    console.error('Wallets not found for session:', sessionId);
-    return res.status(404).json({ error: 'Wallets not found for session' });
+app.get('/api/discord/:sessionId/wallets', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const wallets = await getWalletsForSession(sessionId);
+    if (!wallets) {
+      return res.status(404).json({ error: 'Wallets not found for session' });
+    }
+    res.json(wallets);
+  } catch (error) {
+    console.error('Error fetching wallets:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
-  res.json(wallets);
 });
