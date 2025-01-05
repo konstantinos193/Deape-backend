@@ -445,16 +445,27 @@ app.get('/api/debug/sessions', validateApiKey, (req, res) => {
     });
 });
 
-// Apply rate limiting to session endpoints
-const limiter = rateLimit({
+// Adjust rate limiting to be more permissive for session endpoints
+const sessionLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
-    message: 'Too many requests from this IP, please try again later',
+    max: 300, // Higher limit for session endpoints
+    message: 'Too many requests, please try again later',
     standardHeaders: true,
     legacyHeaders: false,
 });
 
-app.use('/api/session', limiter);
+// More restrictive limit for other endpoints
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: 'Too many requests, please try again later',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Apply different rate limits to different routes
+app.use('/api/session', sessionLimiter);
+app.use('/api/', apiLimiter);
 
 // Start the server
 const PORT = process.env.PORT || 3001;
