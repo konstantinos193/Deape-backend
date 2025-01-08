@@ -370,9 +370,20 @@ async function checkStakedNFTs(walletAddress) {
   return stakerInfo.stakedTokens.length > 0;
 }
 
-async function assignDiscordRoles(sessionId, walletAddress) {
+async function assignDiscordRoles(sessionId, walletAddress, hasStakedNFTs) {
+  console.log('Assigning Discord roles for session:', sessionId, 'wallet:', walletAddress);
+
   // Use Discord.js or another library to interact with the Discord API
   // Assign roles based on the wallet's NFT holdings
+  try {
+    // Example logic for assigning roles
+    if (hasStakedNFTs) {
+      console.log('Assigning staked NFT role');
+      // Add role assignment logic here
+    }
+  } catch (error) {
+    console.error('Error assigning Discord roles:', error);
+  }
 }
 
 app.get('/api/discord/:sessionId/wallets', (req, res) => {
