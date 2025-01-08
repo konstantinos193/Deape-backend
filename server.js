@@ -7,6 +7,7 @@ const RedisStore = require('rate-limit-redis');
 const Redis = require('ioredis');
 const nftAbi = require('./abis/nftAbi.json');
 const stakingAbi = require('./abis/stakingAbi.json');
+const { Client, Intents } = require('discord.js');
 
 const app = express();
 
@@ -370,21 +371,64 @@ async function checkStakedNFTs(walletAddress) {
   return stakerInfo.stakedTokens.length > 0;
 }
 
+const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MEMBERS] });
+
+client.once('ready', () => {
+  console.log(`Logged in as ${client.user.tag}`);
+});
+
 async function assignDiscordRoles(sessionId, walletAddress, hasStakedNFTs) {
   console.log('Assigning Discord roles for session:', sessionId, 'wallet:', walletAddress);
 
-  // Use Discord.js or another library to interact with the Discord API
-  // Assign roles based on the wallet's NFT holdings
   try {
-    // Example logic for assigning roles
-    if (hasStakedNFTs) {
-      console.log('Assigning staked NFT role');
-      // Add role assignment logic here
+    const session = sessions.get(sessionId);
+    if (!session) {
+      console.error('Session not found:', sessionId);
+      return;
     }
+
+    const guild = await client.guilds.fetch(process.env.GUILD_ID);
+    if (!guild) {
+      console.error('Guild not found:', process.env.GUILD_ID);
+      return;
+    }
+
+    const member = await guild.members.fetch(session.discordId);
+    if (!member) {
+      console.error('Member not found:', session.discordId);
+      return;
+    }
+
+    // Remove existing roles first
+    const rolesToRemove = ['1322623738168213575', '1322624148857557084'];
+    await Promise.all(rolesToRemove.map(roleId => member.roles.remove(roleId).catch(err => {
+      console.error(`Failed to remove role ${roleId}:`, err);
+    })));
+
+    // Add roles based on NFT count
+    const totalNFTs = hasStakedNFTs ? 10 : 1; // Example logic
+    if (totalNFTs >= 1) {
+      await member.roles.add('1322623738168213575');
+      console.log(`Added verified role to ${member.user.tag}`);
+    }
+    
+    if (totalNFTs >= 10) {
+      await member.roles.add('1322624148857557084');
+      console.log(`Added elite role to ${member.user.tag}`);
+    }
+
+    console.log(`Updated roles for ${member.user.tag}:`, {
+      totalNFTs,
+      verified: totalNFTs >= 1,
+      elite: totalNFTs >= 10
+    });
+
   } catch (error) {
     console.error('Error assigning Discord roles:', error);
   }
 }
+
+client.login(process.env.DISCORD_BOT_TOKEN);
 
 app.get('/api/discord/:sessionId/wallets', (req, res) => {
   try {
