@@ -261,12 +261,15 @@ app.listen(PORT, () => {
 });
 
 // Function to fetch total NFTs (staked + unstaked)
-async function fetchTotalNFTs(userId) {
-    // Implement logic to fetch both staked and unstaked NFTs
-    const stakedNFTs = await fetchStakedNFTs(userId); // Implement this function
-    const unstakedNFTs = await fetchUnstakedNFTs(userId); // Implement this function
-
-    return stakedNFTs + unstakedNFTs;
+async function fetchTotalNFTs(walletAddress) {
+  try {
+    const nftBalance = await nftContract.balanceOf(walletAddress);
+    const stakedNFTs = await fetchStakedNFTs(walletAddress);
+    return nftBalance.toNumber() + stakedNFTs;
+  } catch (error) {
+    console.error('Error fetching total NFTs:', error);
+    return 0;
+  }
 }
 
 // Function to update user roles based on total NFTs
@@ -467,4 +470,14 @@ function getWalletsForSession(sessionId) {
     return null;
   }
   return session.wallets || [];
+}
+
+async function fetchStakedNFTs(walletAddress) {
+  try {
+    const stakerInfo = await stakingContract.getStakerInfo(walletAddress);
+    return stakerInfo.stakedTokens.length;
+  } catch (error) {
+    console.error('Error fetching staked NFTs:', error);
+    return 0;
+  }
 }
