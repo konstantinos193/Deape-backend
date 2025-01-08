@@ -481,3 +481,83 @@ async function fetchStakedNFTs(walletAddress) {
     return 0;
   }
 }
+
+const contractAddress = '0xddbcc239527dedd5e0c761042ef02a7951cec315';
+const contractABI = [
+  {
+    "inputs": [{ "internalType": "address", "name": "_user", "type": "address" }],
+    "name": "getPoints",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  }
+];
+
+const leaderboardCache = {
+  data: [],
+  lastUpdated: null
+};
+
+// Middleware to check API key
+function checkApiKey(req, res, next) {
+  const apiKey = req.headers['x-api-key'];
+  if (apiKey && apiKey === process.env.BOT_API_KEY) {
+    next();
+  } else {
+    res.status(403).json({ error: 'Forbidden: Invalid API Key' });
+  }
+}
+
+app.get('/api/leaderboard', checkApiKey, (req, res) => {
+  res.json({
+    data: leaderboardCache.data,
+    lastUpdated: leaderboardCache.lastUpdated
+  });
+});
+
+async function updateLeaderboardCache() {
+  try {
+    const contract = new ethers.Contract(contractAddress, contractABI, provider);
+    const startBlock = 6970654;
+    const endBlock = await provider.getBlockNumber();
+    const filter = {
+      address: contractAddress,
+      fromBlock: startBlock,
+      toBlock: endBlock
+    };
+
+    const logs = await provider.getLogs(filter);
+    const addresses = new Set();
+
+    logs.forEach(log => {
+      if (log.topics.length > 1) {
+        const address = ethers.utils.getAddress(`0x${log.topics[1].slice(26)}`);
+        if (address !== '0x0000000000000000000000000000000000000000') {
+          addresses.add(address);
+        }
+      }
+    });
+
+    const leaderboardData = [];
+    for (const address of addresses) {
+      try {
+        const points = await contract.getPoints(address);
+        leaderboardData.push({ address, points: points.toNumber() });
+      } catch (error) {
+        console.error(`Error fetching points for address ${address}:`, error);
+      }
+    }
+
+    leaderboardCache.data = leaderboardData.sort((a, b) => b.points - a.points);
+    leaderboardCache.lastUpdated = new Date();
+    console.log('Leaderboard cache updated');
+  } catch (error) {
+    console.error('Error updating leaderboard cache:', error);
+  }
+}
+
+// Update leaderboard cache every 24 hours
+setInterval(updateLeaderboardCache, 24 * 60 * 60 * 1000);
+
+// Initial cache update
+updateLeaderboardCache();
