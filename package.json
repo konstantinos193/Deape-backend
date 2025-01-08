@@ -18,7 +18,7 @@
     "uuid": "^11.0.3",
     "dotenv": "^16.4.7",
     "axios": "^1.7.9",
-    "discord.js": "^14.0.0" // Add this line
+    "discord.js": "^14.0.0"
   },
   "engines": {
     "node": ">=18.0.0"
