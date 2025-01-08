@@ -270,9 +270,9 @@ async function fetchTotalNFTs(userId) {
 }
 
 // Function to update user roles based on total NFTs
-async function updateUserRoles(userId) {
+async function updateUserRoles(userId, totalNFTs) {
     try {
-        console.log('Processing role update for user:', userId);
+        console.log('Processing role update:', { userId, totalNFTs });
 
         const guild = await client.guilds.fetch(GUILD_ID);
         if (!guild) {
@@ -286,29 +286,24 @@ async function updateUserRoles(userId) {
             return;
         }
 
-        const totalNFTs = await fetchTotalNFTs(userId);
+        // Remove existing roles first
+        const rolesToRemove = [VERIFIED_ROLE_ID, ELITE_ROLE_ID];
+        await Promise.all(rolesToRemove.map(roleId => member.roles.remove(roleId).catch(err => {
+            console.error(`Failed to remove role ${roleId}:`, err);
+        })));
 
-        // Check current roles
-        const hasVerifiedRole = member.roles.cache.has(VERIFIED_ROLE_ID);
-        const hasEliteRole = member.roles.cache.has(ELITE_ROLE_ID);
-
-        // Update roles based on total NFT count
-        if (totalNFTs >= 1 && !hasVerifiedRole) {
+        // Add roles based on NFT count
+        if (totalNFTs >= 1) {
             await member.roles.add(VERIFIED_ROLE_ID);
             console.log(`Added verified role to ${member.user.tag}`);
-        } else if (totalNFTs < 1 && hasVerifiedRole) {
-            await member.roles.remove(VERIFIED_ROLE_ID);
-            console.log(`Removed verified role from ${member.user.tag}`);
         }
-
-        if (totalNFTs >= 10 && !hasEliteRole) {
+        
+        if (totalNFTs >= 10) {
             await member.roles.add(ELITE_ROLE_ID);
             console.log(`Added elite role to ${member.user.tag}`);
-        } else if (totalNFTs < 10 && hasEliteRole) {
-            await member.roles.remove(ELITE_ROLE_ID);
-            console.log(`Removed elite role from ${member.user.tag}`);
         }
 
+        // Log the successful role update
         console.log(`Updated roles for ${member.user.tag}:`, {
             totalNFTs,
             verified: totalNFTs >= 1,
