@@ -7,7 +7,7 @@ const RedisStore = require('rate-limit-redis');
 const Redis = require('ioredis');
 const nftAbi = require('./abis/nftAbi.json');
 const stakingAbi = require('./abis/stakingAbi.json');
-const { Client, Intents } = require('discord.js');
+const { Client, GatewayIntentBits } = require('discord.js');
 
 const app = express();
 
@@ -385,7 +385,12 @@ async function checkStakedNFTs(walletAddress) {
   return stakerInfo.stakedTokens.length > 0;
 }
 
-const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MEMBERS] });
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers
+  ]
+});
 
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
