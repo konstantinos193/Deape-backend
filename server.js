@@ -419,8 +419,10 @@ async function assignDiscordRoles(sessionId, walletAddress, hasStakedNFTs) {
       console.error(`Failed to remove role ${roleId}:`, err);
     })));
 
+    // Calculate total NFTs
+    const totalNFTs = await fetchTotalNFTs(walletAddress);
+
     // Add roles based on NFT count
-    const totalNFTs = hasStakedNFTs ? 10 : 1; // Example logic
     if (totalNFTs >= 1) {
       await member.roles.add('1322623738168213575');
       console.log(`Added verified role to ${member.user.tag}`);
