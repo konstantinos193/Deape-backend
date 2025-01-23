@@ -8,6 +8,7 @@ const Redis = require('ioredis');
 const nftAbi = require('./abis/nftAbi.json');
 const stakingAbi = require('./abis/stakingAbi.json');
 const { Client, GatewayIntentBits } = require('discord.js');
+const { TRACKED_COLLECTIONS } = require('./trackedCollections');
 
 const app = express();
 
@@ -561,3 +562,77 @@ setInterval(updateLeaderboardCache, 24 * 60 * 60 * 1000);
 
 // Initial cache update
 updateLeaderboardCache();
+
+// Store floor prices with collection details
+const floorPriceCache = {
+  data: {},
+  lastUpdated: null
+};
+
+async function updateFloorPriceCache() {
+  try {
+    console.log('Updating floor price cache...');
+    
+    for (const collection of TRACKED_COLLECTIONS) {
+      try {
+        const response = await fetch(
+          `https://api-mainnet.magiceden.dev/v3/rtp/apechain/collections/v7?contract=${collection.contractAddress}&sortBy=allTimeVolume`,
+          {
+            headers: {
+              'Authorization': `Bearer ${process.env.MAGICEDEN_API_KEY}`
+            }
+          }
+        );
+        
+        const data = await response.json();
+        const collectionData = data.collections?.[0];
+        
+        if (collectionData?.floorAsk?.price?.amount?.decimal) {
+          const floorPriceData = {
+            id: collection.id,
+            floorPrice: collectionData.floorAsk.price.amount.decimal,
+            floorPriceUSD: collectionData.floorAsk.price.amount.usd,
+            lastUpdated: new Date(),
+            name: collection.name,
+            symbol: collection.magicEdenSymbol,
+            currency: {
+              name: collectionData.floorAsk.price.currency.name,
+              symbol: collectionData.floorAsk.price.currency.symbol,
+              decimals: collectionData.floorAsk.price.currency.decimals
+            }
+          };
+          
+          // Store by both ID and contract address for flexible lookups
+          floorPriceCache.data[collection.id] = floorPriceData;
+          floorPriceCache.data[collection.contractAddress] = floorPriceData;
+          
+          console.log(`Updated floor price for ${collection.name}: ${floorPriceData.floorPrice} ${floorPriceData.currency.symbol} ($${floorPriceData.floorPriceUSD})`);
+        }
+        
+        // Add delay between requests to respect rate limits
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.error(`Error fetching floor price for ${collection.name}:`, error);
+      }
+    }
+    
+    floorPriceCache.lastUpdated = new Date();
+    console.log('Floor price cache updated successfully');
+  } catch (error) {
+    console.error('Error updating floor price cache:', error);
+  }
+}
+
+// API endpoint to get floor prices
+app.get('/api/floor-prices', checkApiKey, (req, res) => {
+  res.json({
+    data: floorPriceCache.data,
+    lastUpdated: floorPriceCache.lastUpdated
+  });
+});
+
+// Update cache every 30 minutes
+setInterval(updateFloorPriceCache, 30 * 60 * 1000);
+
+// Initial cache update
+updateFloorPriceCache();
