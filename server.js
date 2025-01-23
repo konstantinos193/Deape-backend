@@ -569,59 +569,36 @@ const floorPriceCache = {
   lastUpdated: null
 };
 
-// Add collection details endpoint
-app.get('/api/collection/:address', checkApiKey, async (req, res) => {
-  try {
-    const { address } = req.params;
-    
-    // Check if we have cached floor price data
-    const floorPriceData = floorPriceCache.data[address];
-    
-    if (!floorPriceData) {
-      return res.status(404).json({ 
-        error: 'Collection not found' 
-      });
-    }
+// API endpoint to get collection details
+app.get('/api/collection/:address', checkApiKey, (req, res) => {
+  const requestedAddress = req.params.address.toLowerCase();
+  
+  const collection = TRACKED_COLLECTIONS.find(
+    c => c.contractAddress.toLowerCase() === requestedAddress
+  );
 
-    // Fetch additional collection data from Magic Eden
-    try {
-      const meResponse = await fetch(
-        `https://api-mainnet.magiceden.dev/v3/rtp/apechain/collections/v7?contract=${address}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${process.env.MAGICEDEN_API_KEY}`
-          }
-        }
-      );
-      
-      const meData = await meResponse.json();
-      const collectionData = meData.collections?.[0];
-
-      // Combine floor price data with Magic Eden data
-      res.json({
-        ...floorPriceData,
-        image: collectionData?.image || null,
-        banner: collectionData?.banner || null,
-        description: collectionData?.description || null,
-        volume24h: collectionData?.volume24h || null,
-        volumeAll: collectionData?.volumeAll || null,
-        twitterUsername: collectionData?.twitterUsername || null,
-        discordUrl: collectionData?.discordUrl || null,
-        externalUrl: collectionData?.externalUrl || null
-      });
-
-    } catch (meError) {
-      // If Magic Eden API fails, still return the floor price data
-      console.error('Error fetching Magic Eden data:', meError);
-      res.json(floorPriceData);
-    }
-
-  } catch (error) {
-    console.error('Error fetching collection details:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch collection details' 
-    });
+  if (!collection) {
+    return res.status(404).json({ error: 'Collection not found' });
   }
+
+  // Get cached floor price data
+  const floorPriceData = floorPriceCache.data[collection.contractAddress];
+
+  if (!floorPriceData) {
+    return res.status(404).json({ error: 'Floor price data not found' });
+  }
+
+  // Return combined collection data
+  res.json({
+    id: collection.id,
+    name: collection.name,
+    contractAddress: collection.contractAddress,
+    magicEdenSymbol: collection.magicEdenSymbol,
+    floorPrice: floorPriceData.floorPrice,
+    floorPriceUSD: floorPriceData.floorPriceUSD,
+    currency: floorPriceData.currency,
+    lastUpdated: floorPriceData.lastUpdated
+  });
 });
 
 async function updateFloorPriceCache() {
