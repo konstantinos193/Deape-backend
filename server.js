@@ -9,6 +9,7 @@ const nftAbi = require('./abis/nftAbi.json');
 const stakingAbi = require('./abis/stakingAbi.json');
 const { Client, GatewayIntentBits } = require('discord.js');
 const { TRACKED_COLLECTIONS } = require('./trackedCollections');
+const LENDING_CONTRACT_ABI = require('./lendingContractABI.json');
 
 const app = express();
 
@@ -675,19 +676,27 @@ const poolStatsCache = {
   lastUpdated: null
 };
 
-// Add this function to calculate pool stats
+// Configure provider for ApeChain
+const provider = new ethers.providers.JsonRpcProvider(
+  process.env.APECHAIN_RPC_URL // e.g., "https://rpc.apechain.com"
+);
+
+// Contract configuration
+const LENDING_CONTRACT_ADDRESS = process.env.LENDING_CONTRACT_ADDRESS;
+
+// Initialize contract instance
+const lendingContract = new ethers.Contract(
+  LENDING_CONTRACT_ADDRESS,
+  LENDING_CONTRACT_ABI,
+  provider
+);
+
 async function updatePoolStatsCache() {
   try {
     console.log('Updating pool stats cache...');
     
-    const contract = new ethers.Contract(
-      process.env.LENDING_CONTRACT_ADDRESS,
-      LENDING_CONTRACT_ABI,
-      provider
-    );
-
-    // Get all collections
-    const collections = await contract.getCollections();
+    // Get all collections using the contract instance
+    const collections = await lendingContract.getCollections();
     
     for (const collection of collections) {
       try {
@@ -696,13 +705,13 @@ async function updatePoolStatsCache() {
         let totalPool = ethers.BigNumber.from(0);
         
         // Get all active offers for this collection
-        const filter = contract.filters.LoanOfferCreated(null, null, collectionAddress);
-        const events = await contract.queryFilter(filter);
+        const filter = lendingContract.filters.LoanOfferCreated(null, null, collectionAddress);
+        const events = await lendingContract.queryFilter(filter);
         
         // Process each offer
         for (const event of events) {
           const offerId = event.args.offerId;
-          const offerDetails = await contract.getOfferDetails(offerId);
+          const offerDetails = await lendingContract.getOfferDetails(offerId);
           
           // Only count active offers
           if (offerDetails.isActive) {
