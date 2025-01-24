@@ -668,3 +668,86 @@ setInterval(updateFloorPriceCache, 30 * 60 * 1000);
 
 // Initial cache update
 updateFloorPriceCache();
+
+// Add this after the floor price cache
+const poolStatsCache = {
+  data: {},
+  lastUpdated: null
+};
+
+// Add this function to calculate pool stats
+async function updatePoolStatsCache() {
+  try {
+    console.log('Updating pool stats cache...');
+    
+    const contract = new ethers.Contract(
+      process.env.LENDING_CONTRACT_ADDRESS,
+      LENDING_CONTRACT_ABI,
+      provider
+    );
+
+    // Get all collections
+    const collections = await contract.getCollections();
+    
+    for (const collection of collections) {
+      try {
+        const collectionAddress = collection.nftContract;
+        let bestOffer = ethers.BigNumber.from(0);
+        let totalPool = ethers.BigNumber.from(0);
+        
+        // Get all active offers for this collection
+        const filter = contract.filters.LoanOfferCreated(null, null, collectionAddress);
+        const events = await contract.queryFilter(filter);
+        
+        // Process each offer
+        for (const event of events) {
+          const offerId = event.args.offerId;
+          const offerDetails = await contract.getOfferDetails(offerId);
+          
+          // Only count active offers
+          if (offerDetails.isActive) {
+            totalPool = totalPool.add(offerDetails.loanAmount);
+            
+            // Update best offer if this is larger
+            if (offerDetails.loanAmount.gt(bestOffer)) {
+              bestOffer = offerDetails.loanAmount;
+            }
+          }
+        }
+
+        poolStatsCache.data[collectionAddress] = {
+          availablePool: ethers.utils.formatEther(totalPool),
+          bestOffer: ethers.utils.formatEther(bestOffer),
+          lastUpdated: new Date()
+        };
+
+        console.log(`Updated pool stats for ${collection.name}:`, {
+          availablePool: ethers.utils.formatEther(totalPool),
+          bestOffer: ethers.utils.formatEther(bestOffer)
+        });
+
+      } catch (error) {
+        console.error(`Error processing collection ${collection.name}:`, error);
+      }
+    }
+    
+    poolStatsCache.lastUpdated = new Date();
+    console.log('Pool stats cache updated successfully');
+  } catch (error) {
+    console.error('Error updating pool stats cache:', error);
+  }
+}
+
+// Add API endpoint to get pool stats
+app.get('/api/pool-stats', checkApiKey, (req, res) => {
+  res.json({
+    data: poolStatsCache.data,
+    lastUpdated: poolStatsCache.lastUpdated
+  });
+});
+
+// Update cache every 5 minutes
+setInterval(updatePoolStatsCache, 5 * 60 * 1000);
+
+// Initial cache update
+updatePoolStatsCache();
