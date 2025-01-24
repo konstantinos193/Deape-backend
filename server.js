@@ -45,8 +45,13 @@ function verifySignature(address, message, signature) {
   }
 }
 
-// Connect to ApeChain
-const provider = new ethers.providers.JsonRpcProvider('https://apechain.calderachain.xyz/http');
+// Ensure we have the RPC URL
+if (!process.env.APECHAIN_RPC_URL) {
+  throw new Error('APECHAIN_RPC_URL is not defined in environment variables');
+}
+
+// Initialize provider with RPC URL from .env
+const provider = new ethers.providers.JsonRpcProvider(process.env.APECHAIN_RPC_URL);
 
 // Wallet update endpoint
 app.post('/api/discord/:sessionId/wallets', async (req, res) => {
@@ -676,15 +681,13 @@ const poolStatsCache = {
   lastUpdated: null
 };
 
-// Configure provider for ApeChain
-const provider = new ethers.providers.JsonRpcProvider(
-  process.env.APECHAIN_RPC_URL // e.g., "https://rpc.apechain.com"
-);
-
 // Contract configuration
 const LENDING_CONTRACT_ADDRESS = process.env.LENDING_CONTRACT_ADDRESS;
+if (!LENDING_CONTRACT_ADDRESS) {
+  throw new Error('LENDING_CONTRACT_ADDRESS is not defined in environment variables');
+}
 
-// Initialize contract instance
+// Initialize contract
 const lendingContract = new ethers.Contract(
   LENDING_CONTRACT_ADDRESS,
   LENDING_CONTRACT_ABI,
