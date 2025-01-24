@@ -707,20 +707,28 @@ async function updatePoolStatsCache() {
         let bestOffer = ethers.BigNumber.from(0);
         let totalPool = ethers.BigNumber.from(0);
         
-        // Get all active offers for this collection
-        const filter = lendingContract.filters.LoanOfferCreated(null, null, collectionAddress);
-        const events = await lendingContract.queryFilter(filter);
+        // Get all active collection offers
+        const eventSignature = ethers.utils.id("CollectionOfferCreated(uint256,address,address,uint256,uint256,uint256)");
+        const filter = {
+          address: LENDING_CONTRACT_ADDRESS,
+          topics: [
+            eventSignature,
+            null, // offerId (any)
+            null, // lender address (any)
+            ethers.utils.hexZeroPad(collectionAddress, 32) // collection address (specific)
+          ],
+          fromBlock: 0
+        };
         
-        // Process each offer
+        const events = await provider.getLogs(filter);
+        
+        // Process each event
         for (const event of events) {
-          const offerId = event.args.offerId;
+          const offerId = ethers.BigNumber.from(event.topics[1]).toNumber();
           const offerDetails = await lendingContract.getOfferDetails(offerId);
           
-          // Only count active offers
           if (offerDetails.isActive) {
             totalPool = totalPool.add(offerDetails.loanAmount);
-            
-            // Update best offer if this is larger
             if (offerDetails.loanAmount.gt(bestOffer)) {
               bestOffer = offerDetails.loanAmount;
             }
