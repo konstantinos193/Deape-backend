@@ -90,13 +90,18 @@
             },
             {
                 "internalType": "uint256",
-                "name": "_maxLoanDuration",
+                "name": "_maxDuration",
                 "type": "uint256"
             },
             {
                 "internalType": "uint256",
                 "name": "_maxAPY",
                 "type": "uint256"
+            },
+            {
+                "internalType": "string",
+                "name": "_imageUrl",
+                "type": "string"
             }
         ],
         "name": "addCollection",
@@ -159,14 +164,24 @@
     {
         "inputs": [
             {
+                "internalType": "address",
+                "name": "_nftContract",
+                "type": "address"
+            },
+            {
                 "internalType": "uint256",
-                "name": "_offerId",
+                "name": "_tokenId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_feePercentage",
                 "type": "uint256"
             }
         ],
         "name": "repayLoan",
         "outputs": [],
-        "stateMutability": "nonpayable",
+        "stateMutability": "payable",
         "type": "function"
     },
     {
@@ -326,18 +341,28 @@
             },
             {
                 "internalType": "uint256",
-                "name": "_apy",
+                "name": "_apyInBasisPoints",
                 "type": "uint256"
             },
             {
                 "internalType": "uint256",
-                "name": "_duration",
+                "name": "_durationInDays",
+                "type": "uint256"
+            },
+            {
+                "internalType": "bool",
+                "name": "_isCollectionWide",
+                "type": "bool"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_createdAt",
                 "type": "uint256"
             }
         ],
-        "name": "createSpecificNFTOffer",
+        "name": "createLoanOffer",
         "outputs": [],
-        "stateMutability": "nonpayable",
+        "stateMutability": "payable",
         "type": "function"
     },
     {
@@ -375,11 +400,6 @@
                 "type": "string"
             },
             {
-                "internalType": "bool",
-                "name": "isActive",
-                "type": "bool"
-            },
-            {
                 "internalType": "uint256",
                 "name": "maxLoanDuration",
                 "type": "uint256"
@@ -390,9 +410,29 @@
                 "type": "uint256"
             },
             {
+                "internalType": "bool",
+                "name": "isActive",
+                "type": "bool"
+            },
+            {
                 "internalType": "uint256",
-                "name": "addedAt",
+                "name": "totalLoans",
                 "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "totalVolume",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "lastUpdateTime",
+                "type": "uint256"
+            },
+            {
+                "internalType": "string",
+                "name": "imageUrl",
+                "type": "string"
             }
         ],
         "stateMutability": "view",
@@ -464,31 +504,54 @@
         "inputs": [
             {
                 "indexed": true,
-                "name": "nftContract",
-                "type": "address"
+                "internalType": "uint256",
+                "name": "offerId",
+                "type": "uint256"
             },
             {
                 "indexed": true,
+                "internalType": "address",
                 "name": "lender",
                 "type": "address"
             },
             {
+                "indexed": true,
+                "internalType": "address",
+                "name": "nftContract",
+                "type": "address"
+            },
+            {
                 "indexed": false,
-                "name": "amount",
+                "internalType": "uint256",
+                "name": "tokenId",
                 "type": "uint256"
             },
             {
                 "indexed": false,
+                "internalType": "uint256",
+                "name": "loanAmount",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
                 "name": "apy",
                 "type": "uint256"
             },
             {
                 "indexed": false,
+                "internalType": "uint256",
                 "name": "duration",
                 "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "bool",
+                "name": "isCollectionWide",
+                "type": "bool"
             }
         ],
-        "name": "OfferCreated",
+        "name": "LoanOfferCreated",
         "type": "event"
     },
     {
@@ -760,6 +823,11 @@
                         "internalType": "bool",
                         "name": "isCollectionWide",
                         "type": "bool"
+                    },
+                    {
+                        "internalType": "enum NFTLending.LoanStatus",
+                        "name": "status",
+                        "type": "uint8"
                     }
                 ],
                 "internalType": "struct NFTLending.LoanOffer",
@@ -778,7 +846,7 @@
                 "type": "uint256"
             }
         ],
-        "name": "getOfferDetails",
+        "name": "getLoanOffer",
         "outputs": [
             {
                 "internalType": "address",
@@ -786,8 +854,23 @@
                 "type": "address"
             },
             {
+                "internalType": "address",
+                "name": "borrower",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "nftContract",
+                "type": "address"
+            },
+            {
                 "internalType": "uint256",
                 "name": "loanAmount",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "startTime",
                 "type": "uint256"
             },
             {
@@ -799,6 +882,11 @@
                 "internalType": "bool",
                 "name": "isCollectionWide",
                 "type": "bool"
+            },
+            {
+                "internalType": "uint8",
+                "name": "status",
+                "type": "uint8"
             }
         ],
         "stateMutability": "view",
@@ -832,6 +920,429 @@
             }
         ],
         "name": "cancelCollectionOffer",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "user",
+                "type": "address"
+            }
+        ],
+        "name": "AddressBlacklisted",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "user",
+                "type": "address"
+            }
+        ],
+        "name": "AddressUnblacklisted",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "nftContract",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "string",
+                "name": "name",
+                "type": "string"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "maxLoanDuration",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "maxAPY",
+                "type": "uint256"
+            }
+        ],
+        "name": "CollectionAdded",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "nftContract",
+                "type": "address"
+            }
+        ],
+        "name": "CollectionDeactivated",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "nftContract",
+                "type": "address"
+            }
+        ],
+        "name": "CollectionReactivated",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "nftContract",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "bool",
+                "name": "isActive",
+                "type": "bool"
+            }
+        ],
+        "name": "CollectionStatusChanged",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [],
+        "name": "EmergencyModeDisabled",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [],
+        "name": "EmergencyModeEnabled",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "bool",
+                "name": "isPaused",
+                "type": "bool"
+            }
+        ],
+        "name": "EmergencyPauseSet",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "uint256",
+                "name": "offerId",
+                "type": "uint256"
+            },
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "borrower",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "repayAmount",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "dueDate",
+                "type": "uint256"
+            }
+        ],
+        "name": "LoanAccepted",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "uint256",
+                "name": "offerId",
+                "type": "uint256"
+            },
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "lender",
+                "type": "address"
+            }
+        ],
+        "name": "LoanCancelled",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "uint256",
+                "name": "offerId",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "enum NFTLending.LoanStatus",
+                "name": "oldStatus",
+                "type": "uint8"
+            },
+            {
+                "indexed": false,
+                "internalType": "enum NFTLending.LoanStatus",
+                "name": "newStatus",
+                "type": "uint8"
+            }
+        ],
+        "name": "LoanStatusChanged",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "uint256",
+                "name": "snapshotId",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "activeLoans",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "tvl",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "feesCollected",
+                "type": "uint256"
+            }
+        ],
+        "name": "MetricsSnapshotTaken",
+        "type": "event"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_offerId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_acceptedAt",
+                "type": "uint256"
+            }
+        ],
+        "name": "acceptLoanOffer",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "stateMutability": "payable",
+        "type": "receive"
+    },
+    {
+        "stateMutability": "payable",
+        "type": "fallback"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "role",
+                "type": "bytes32"
+            },
+            {
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            }
+        ],
+        "name": "hasRole",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "role",
+                "type": "bytes32"
+            },
+            {
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            }
+        ],
+        "name": "grantRole",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "role",
+                "type": "bytes32"
+            },
+            {
+                "internalType": "address",
+                "name": "account",
+                "type": "address"
+            }
+        ],
+        "name": "revokeRole",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "role",
+                "type": "bytes32"
+            }
+        ],
+        "name": "getRoleAdmin",
+        "outputs": [
+            {
+                "internalType": "bytes32",
+                "name": "",
+                "type": "bytes32"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "ADMIN_ROLE",
+        "outputs": [
+            {
+                "internalType": "bytes32",
+                "name": "",
+                "type": "bytes32"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "newAdmin",
+                "type": "address"
+            }
+        ],
+        "name": "initializeAdmin",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getAllCollectionAddresses",
+        "outputs": [
+            {
+                "internalType": "address[]",
+                "name": "",
+                "type": "address[]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getCollectionCount",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "_nftContract",
+                "type": "address"
+            },
+            {
+                "internalType": "string",
+                "name": "_name",
+                "type": "string"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_maxDuration",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_maxAPY",
+                "type": "uint256"
+            },
+            {
+                "internalType": "string",
+                "name": "_imageUrl",
+                "type": "string"
+            }
+        ],
+        "name": "updateCollection",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
