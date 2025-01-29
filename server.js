@@ -53,7 +53,7 @@ if (!process.env.PROVIDER_URL) {
 // Initialize provider
 const provider = new ethers.providers.JsonRpcProvider(process.env.PROVIDER_URL);
 
-// Initialize contract
+// Initialize contract (only declare once at the top level)
 const lendingContract = new ethers.Contract(
   process.env.LENDING_CONTRACT_ADDRESS,
   LENDING_CONTRACT_ABI,
@@ -688,20 +688,7 @@ const poolStatsCache = {
   lastUpdated: null
 };
 
-// Contract configuration
-const LENDING_CONTRACT_ADDRESS = process.env.LENDING_CONTRACT_ADDRESS;
-if (!LENDING_CONTRACT_ADDRESS) {
-  throw new Error('LENDING_CONTRACT_ADDRESS is not defined in environment variables');
-}
-
-// Initialize contract
-const lendingContract = new ethers.Contract(
-  LENDING_CONTRACT_ADDRESS,
-  LENDING_CONTRACT_ABI,
-  provider
-);
-
-// Update the pool stats cache function to properly interact with the contract
+// Update the pool stats cache function
 async function updatePoolStatsCache() {
   try {
     console.log('Updating pool stats cache...');
