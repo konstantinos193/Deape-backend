@@ -783,17 +783,21 @@ app.get('/api/floor-price/:address', async (req, res) => {
       return res.status(403).json({ error: 'Invalid API key' });
     }
 
-    // Get floor price for specific collection
+    // Get floor price from cache
+    const floorPriceData = floorPriceCache.data[address.toLowerCase()];
+    
+    if (!floorPriceData) {
+      return res.status(404).json({ error: 'Floor price data not found' });
+    }
+
+    // Return data in the expected format
     const floorPrices = {
       data: {
         [address.toLowerCase()]: {
-          floorPrice: 0.0, // Replace with actual floor price fetching logic
-          floorPriceUSD: 0.0,
-          currency: {
-            name: "ApeCoin",
-            symbol: "APE",
-            decimals: 18
-          }
+          floorPrice: floorPriceData.floorPrice,
+          floorPriceUSD: floorPriceData.floorPriceUSD,
+          currency: floorPriceData.currency,
+          lastUpdated: floorPriceData.lastUpdated
         }
       }
     };
