@@ -699,20 +699,10 @@ async function updatePoolStatsCache() {
     for (const collectionAddress of collections) {
       try {
         // Get collection data using the correct contract method
-        const [
-          name,
-          maxLoanDuration,
-          maxAPY,
-          isActive,
-          totalLoans,
-          totalVolume,
-          lastUpdateTime,
-          imageUrl,
-          nameHash
-        ] = await lendingContract.getCollectionData(collectionAddress);
-
+        const collectionData = await lendingContract.collections(collectionAddress);
+        
         // Skip inactive collections
-        if (!isActive) continue;
+        if (!collectionData.isActive) continue;
 
         let bestOffer = ethers.BigNumber.from(0);
         let totalPool = ethers.BigNumber.from(0);
