@@ -694,60 +694,67 @@ const lendingContract = new ethers.Contract(
   provider
 );
 
+// Update the pool stats cache function to properly interact with the contract
 async function updatePoolStatsCache() {
   try {
     console.log('Updating pool stats cache...');
     
-    // Get all collections using the contract instance
-    const collections = await lendingContract.getCollections();
+    // Get all collections from the contract
+    const collections = await lendingContract.getAllCollectionAddresses();
     
-    for (const collection of collections) {
+    for (const collectionAddress of collections) {
       try {
-        const collectionAddress = collection.nftContract;
+        // Get collection data to verify it's active
+        const collectionData = await lendingContract.getCollectionData(collectionAddress);
+        if (!collectionData.isActive) continue;
+
         let bestOffer = ethers.BigNumber.from(0);
         let totalPool = ethers.BigNumber.from(0);
         
-        // Get all active collection offers
-        const eventSignature = ethers.utils.id("CollectionOfferCreated(uint256,address,address,uint256,uint256,uint256)");
-        const filter = {
-          address: LENDING_CONTRACT_ADDRESS,
-          topics: [
-            eventSignature,
-            null, // offerId (any)
-            null, // lender address (any)
-            ethers.utils.hexZeroPad(collectionAddress, 32) // collection address (specific)
-          ],
-          fromBlock: 0
-        };
+        // Get collection-wide offers
+        const filter = lendingContract.filters.CollectionOfferCreated(
+          null, // offerId (any)
+          null, // lender (any)
+          collectionAddress // specific collection
+        );
         
-        const events = await provider.getLogs(filter);
+        // Get events from the last 30 days (or adjust as needed)
+        const currentBlock = await provider.getBlockNumber();
+        const fromBlock = currentBlock - 172800; // Approximately 30 days of blocks
+        const events = await lendingContract.queryFilter(filter, fromBlock, 'latest');
         
-        // Process each event
+        // Process each offer
         for (const event of events) {
-          const offerId = ethers.BigNumber.from(event.topics[1]).toNumber();
-          const offerDetails = await lendingContract.getOfferDetails(offerId);
-          
-          if (offerDetails.isActive) {
-            totalPool = totalPool.add(offerDetails.loanAmount);
-            if (offerDetails.loanAmount.gt(bestOffer)) {
-              bestOffer = offerDetails.loanAmount;
+          const offerId = event.args.offerId;
+          try {
+            const offer = await lendingContract.loanOffers(offerId);
+            
+            // Only count active offers
+            if (offer.status === 0) { // PENDING status
+              totalPool = totalPool.add(offer.loanAmount);
+              if (offer.loanAmount.gt(bestOffer)) {
+                bestOffer = offer.loanAmount;
+              }
             }
+          } catch (error) {
+            console.error(`Error processing offer ${offerId}:`, error);
           }
         }
 
-        poolStatsCache.data[collectionAddress] = {
+        // Update cache with formatted values
+        poolStatsCache.data[collectionAddress.toLowerCase()] = {
           availablePool: ethers.utils.formatEther(totalPool),
           bestOffer: ethers.utils.formatEther(bestOffer),
           lastUpdated: new Date()
         };
 
-        console.log(`Updated pool stats for ${collection.name}:`, {
+        console.log(`Updated pool stats for collection ${collectionAddress}:`, {
           availablePool: ethers.utils.formatEther(totalPool),
           bestOffer: ethers.utils.formatEther(bestOffer)
         });
 
       } catch (error) {
-        console.error(`Error processing collection ${collection.name}:`, error);
+        console.error(`Error processing collection ${collectionAddress}:`, error);
       }
     }
     
@@ -758,16 +765,39 @@ async function updatePoolStatsCache() {
   }
 }
 
-// Add API endpoint to get pool stats
-app.get('/api/pool-stats', checkApiKey, (req, res) => {
-  res.json({
-    data: poolStatsCache.data,
-    lastUpdated: poolStatsCache.lastUpdated
-  });
+// Add a new endpoint to get stats for a specific collection
+app.get('/api/pool-stats/:collectionAddress', async (req, res) => {
+  try {
+    const { collectionAddress } = req.params;
+    
+    // Validate API key
+    const apiKey = req.headers['x-api-key'];
+    if (!apiKey || apiKey !== process.env.FRONTEND_API_KEY) {
+      return res.status(403).json({ error: 'Invalid API key' });
+    }
+
+    // Get stats from cache
+    const stats = poolStatsCache.data[collectionAddress.toLowerCase()];
+    
+    if (!stats) {
+      return res.status(404).json({ error: 'Stats not found for collection' });
+    }
+
+    res.json({
+      data: {
+        availablePool: stats.availablePool,
+        bestOffer: stats.bestOffer,
+        lastUpdated: stats.lastUpdated
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching pool stats:', error);
+    res.status(500).json({ error: 'Failed to fetch pool stats' });
+  }
 });
 
-// Update cache every 5 minutes
-setInterval(updatePoolStatsCache, 5 * 60 * 1000);
+// Update cache more frequently (every 2 minutes)
+setInterval(updatePoolStatsCache, 2 * 60 * 1000);
 
 // Initial cache update
 updatePoolStatsCache();
