@@ -46,12 +46,19 @@ function verifySignature(address, message, signature) {
 }
 
 // Ensure we have the RPC URL
-if (!process.env.APECHAIN_RPC_URL) {
-  throw new Error('APECHAIN_RPC_URL is not defined in environment variables');
+if (!process.env.PROVIDER_URL) {
+  throw new Error('PROVIDER_URL is not defined in environment variables');
 }
 
-// Initialize provider with RPC URL from .env
-const provider = new ethers.providers.JsonRpcProvider(process.env.APECHAIN_RPC_URL);
+// Initialize provider
+const provider = new ethers.providers.JsonRpcProvider(process.env.PROVIDER_URL);
+
+// Initialize contract
+const lendingContract = new ethers.Contract(
+  process.env.LENDING_CONTRACT_ADDRESS,
+  LENDING_CONTRACT_ABI,
+  provider
+);
 
 // Wallet update endpoint
 app.post('/api/discord/:sessionId/wallets', async (req, res) => {
