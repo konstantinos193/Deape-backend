@@ -771,3 +771,36 @@ setInterval(updatePoolStatsCache, 5 * 60 * 1000);
 
 // Initial cache update
 updatePoolStatsCache();
+
+// Floor price endpoint
+app.get('/api/floor-price/:address', async (req, res) => {
+  try {
+    const { address } = req.params;
+    
+    // Validate API key
+    const apiKey = req.headers['x-api-key'];
+    if (!apiKey || apiKey !== process.env.FRONTEND_API_KEY) {
+      return res.status(403).json({ error: 'Invalid API key' });
+    }
+
+    // Get floor price for specific collection
+    const floorPrices = {
+      data: {
+        [address.toLowerCase()]: {
+          floorPrice: 0.0, // Replace with actual floor price fetching logic
+          floorPriceUSD: 0.0,
+          currency: {
+            name: "ApeCoin",
+            symbol: "APE",
+            decimals: 18
+          }
+        }
+      }
+    };
+
+    res.json(floorPrices);
+  } catch (error) {
+    console.error('Error fetching floor price:', error);
+    res.status(500).json({ error: 'Failed to fetch floor price' });
+  }
+});
