@@ -60,6 +60,8 @@ const lendingContract = new ethers.Contract(
   provider
 );
 
+console.log('Contract Events:', lendingContract.interface.events);
+
 // Wallet update endpoint
 app.post('/api/discord/:sessionId/wallets', async (req, res) => {
   console.log('Received request for session:', req.params.sessionId);
