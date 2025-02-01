@@ -56,11 +56,12 @@ const provider = new ethers.providers.JsonRpcProvider(process.env.PROVIDER_URL);
 // Initialize contract (only declare once at the top level)
 const lendingContract = new ethers.Contract(
   process.env.LENDING_CONTRACT_ADDRESS,
-  LENDING_CONTRACT_ABI,
+  LENDING_CONTRACT_ABI.abi,
   provider
 );
 
 console.log('Contract Events:', lendingContract.interface.events);
+console.log('ABI:', LENDING_CONTRACT_ABI.abi);
 
 // Wallet update endpoint
 app.post('/api/discord/:sessionId/wallets', async (req, res) => {
