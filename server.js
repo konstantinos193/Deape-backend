@@ -693,39 +693,42 @@ async function updatePoolStatsCache() {
   try {
     console.log('Updating pool stats cache...');
     
-    // Get all collections from the contract
+    // Log the contract address and ABI
+    console.log('Lending Contract Address:', lendingContract.address);
+    console.log('Lending Contract ABI:', lendingContract.interface.fragments);
+
     const collections = await lendingContract.getAllCollectionAddresses();
     
     for (const collectionAddress of collections) {
       try {
-        // Get collection data using the correct contract method
         const collectionData = await lendingContract.collections(collectionAddress);
         
-        // Skip inactive collections
         if (!collectionData.isActive) continue;
 
         let bestOffer = ethers.BigNumber.from(0);
         let totalPool = ethers.BigNumber.from(0);
         
-        // Get collection-wide offers
+        // Check if the filter function exists
+        if (typeof lendingContract.filters.CollectionOfferCreated !== 'function') {
+          console.error('CollectionOfferCreated filter not found in contract');
+          continue;
+        }
+
         const filter = lendingContract.filters.CollectionOfferCreated(
           null, // offerId (any)
           null, // lender (any)
           collectionAddress // specific collection
         );
         
-        // Get events from the last 30 days (or adjust as needed)
         const currentBlock = await provider.getBlockNumber();
         const fromBlock = currentBlock - 172800; // Approximately 30 days of blocks
         const events = await lendingContract.queryFilter(filter, fromBlock, 'latest');
         
-        // Process each offer
         for (const event of events) {
           const offerId = event.args.offerId;
           try {
             const offer = await lendingContract.loanOffers(offerId);
             
-            // Only count active offers
             if (offer.status === 0) { // PENDING status
               totalPool = totalPool.add(offer.loanAmount);
               if (offer.loanAmount.gt(bestOffer)) {
@@ -737,7 +740,6 @@ async function updatePoolStatsCache() {
           }
         }
 
-        // Update cache with formatted values
         poolStatsCache.data[collectionAddress.toLowerCase()] = {
           availablePool: ethers.utils.formatEther(totalPool),
           bestOffer: ethers.utils.formatEther(bestOffer),
@@ -766,13 +768,11 @@ app.get('/api/pool-stats/:collectionAddress', async (req, res) => {
   try {
     const { collectionAddress } = req.params;
     
-    // Validate API key
     const apiKey = req.headers['x-api-key'];
     if (!apiKey || apiKey !== process.env.FRONTEND_API_KEY) {
       return res.status(403).json({ error: 'Invalid API key' });
     }
 
-    // Get stats from cache
     const stats = poolStatsCache.data[collectionAddress.toLowerCase()];
     
     if (!stats) {
